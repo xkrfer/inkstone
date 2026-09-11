@@ -59,6 +59,8 @@ Every new account automatically receives two standard starter notes, one in Chin
    - To use KV mode, change the deploy command to `npm run deploy:kv`.
 5. After deployment completes, open the generated Workers URL.
 
+To enable passkeys, add `PUBLIC_URL` (for example, `https://notes.example.com`) as a Worker runtime variable under **Settings → Variables and Secrets**, not only as a build environment variable. Both R2 and KV configurations enable `keep_vars = true`, preserving dashboard variables omitted from the configuration during subsequent Git-triggered deployments. Explicit `[vars]` entries still override dashboard values. If an earlier deployment deleted `PUBLIC_URL`, add it again once.
+
 Existing databases are upgraded automatically through versioned, idempotent migrations. Keep a current backup before updating any self-hosted deployment. When a newer stable Inkstone release is available, the owner receives a focused reminder without interrupting regular members.
 
 ## Exports and backups

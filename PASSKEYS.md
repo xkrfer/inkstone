@@ -4,13 +4,15 @@ Inkstone supports up to ten passkeys per existing account. Register with a passw
 
 ## Enable on an instance
 
-Set `PUBLIC_URL` under `[vars]` in the deployment configuration you use (`wrangler.toml` or `wrangler.kv.toml`):
+Set `PUBLIC_URL` as a runtime variable in the Cloudflare Worker dashboard under **Settings → Variables and Secrets**, or add it under `[vars]` in the deployment configuration you use (`wrangler.toml` or `wrangler.kv.toml`):
 
 ```toml
 [vars]
 APP_NAME = "Inkstone"
 PUBLIC_URL = "https://notes.example.com"
 ```
+
+Both deployment configurations set `keep_vars = true`, so subsequent Git-triggered deployments retain dashboard variables omitted from the configuration file. Variables explicitly declared in `[vars]` still take precedence over dashboard values. Configure `PUBLIC_URL` as a Worker runtime variable, not only as a build environment variable. If a previous deployment already deleted it, add it again once; the preservation setting cannot restore a deleted value.
 
 Use the site's exact, permanent HTTPS origin, without a path, credentials, query or fragment. Missing or invalid configuration disables passkeys without disabling password login. The RP ID is the hostname (without the port); the allowed Origin includes the port when present. Requests must arrive at that origin. Other domain aliases cannot register or use passkeys. Local development can explicitly use `http://localhost:5173` (substitute the actual port).
 

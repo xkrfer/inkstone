@@ -1,5 +1,6 @@
 name = "inkstone"
 main = "src/worker/index.ts"
+keep_vars = true
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 
