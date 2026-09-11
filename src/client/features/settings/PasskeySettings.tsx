@@ -79,11 +79,11 @@ export function PasskeySettings() {
           <Button size="sm" variant="danger" disabled={busy || !online} onClick={() => open({ kind: 'delete', key })}>{t('passkey.delete')}</Button></div>
       </div>)}
       {action && <form className="space-y-3 rounded-[var(--r-md)] border border-[var(--border-default)] p-3" onSubmit={(event) => { event.preventDefault(); void submit() }}>
-        {action.kind !== 'delete' && <label className="block">{t('passkey.name')}<Input aria-label={t('passkey.name')} value={name} maxLength={64} required disabled={busy} onChange={(event) => setName(event.target.value)} /></label>}
+        {action.kind !== 'delete' && <label className="block">{t('passkey.name')}<Input aria-label={t('passkey.name')} placeholder={t('passkey.name_placeholder')} value={name} maxLength={64} required disabled={busy} onChange={(event) => setName(event.target.value)} /></label>}
         {action.kind === 'delete' && <p>{t('passkey.delete_description', { name: action.key.name })}</p>}
         {action.kind !== 'rename' && <>
-          <label className="block">{t('common.password')}<Input aria-label={t('common.password')} type="password" autoComplete="current-password" required value={password} disabled={busy} onChange={(event) => setPassword(event.target.value)} /></label>
-          {totpStatus?.enabled && <label className="block">{t('passkey.code')}<Input aria-label={t('passkey.code')} autoComplete="one-time-code" required value={code} disabled={busy} onChange={(event) => setCode(event.target.value)} /></label>}
+          <label className="block">{t('common.password')}<Input aria-label={t('common.password')} placeholder={t('passkey.password_placeholder')} type="password" autoComplete="current-password" required value={password} disabled={busy} onChange={(event) => setPassword(event.target.value)} /></label>
+          {totpStatus?.enabled && <label className="block">{t('passkey.code')}<Input aria-label={t('passkey.code')} placeholder={t('passkey.code_placeholder')} autoComplete="one-time-code" required value={code} disabled={busy} onChange={(event) => setCode(event.target.value)} /></label>}
           <p className="text-xs text-[var(--text-tertiary)]">{t('passkey.reauth')}</p>
         </>}
         <div className="flex gap-2"><Button type="submit" disabled={busy || !online || (action.kind !== 'delete' && !name.trim())}>{t('passkey.confirm')}</Button>
