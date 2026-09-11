@@ -14,6 +14,7 @@ interface SessionState {
   authError: string | null
 
   load: () => Promise<void>
+  passkeyLogin: () => Promise<void>
   passwordLogin: (username: string, password: string) => Promise<TotpLoginChallenge | null>
   totpLogin: (challengeToken: string, code: string) => Promise<void>
   passwordRegister: (username: string, password: string) => Promise<void>
@@ -74,6 +75,16 @@ export const useSession = create<SessionState>((set, get) => ({
         authError: err instanceof ApiError ? err.message : t("session.could_not_connect_to_the_server"),
       })
     }
+  },
+
+  async passkeyLogin() {
+    const sequence = ++sessionRequestSequence
+    const { authenticatePasskey } = await import('../lib/passkeys')
+    const info = await authenticatePasskey()
+    if (sequence !== sessionRequestSequence) return
+    await persistSession(info)
+    if (sequence !== sessionRequestSequence) return
+    adopt(info, set)
   },
 
   async passwordLogin(username, password) {

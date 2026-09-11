@@ -48,3 +48,7 @@ prerelease identifier.
 Describe the user-visible outcome, important compatibility effects, security implications, and the exact checks you ran. Include screenshots for interface changes and explain narrow-screen behavior when layout is affected.
 
 By contributing, you agree that your contribution is licensed under the repository's LGPL-3.0-only license.
+
+## Passkey changes
+
+Run `npm run test:passkeys` for isolated Workers/D1 integration coverage. Run `npx playwright install chromium` once, then `npm run test:passkeys:browser` for production-client WebAuthn tests on localhost:7712. Neither suite connects to a deployed instance. See [PASSKEYS.md](PASSKEYS.md) for release checks and the separate physical-device acceptance matrix.

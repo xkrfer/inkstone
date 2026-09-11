@@ -699,3 +699,34 @@ function tooManyAttempts(error: ThrottleError): ApiError {
 function changed(result: D1Result | undefined): boolean {
   return (result?.meta.changes ?? 0) > 0
 }
+
+export async function verifyTotpForPasskey(env: Env, userId: string, input: unknown): Promise<string> {
+  const credential = await loadCredential(env.DB, userId)
+  if (!credential || credential.enabled_at === null) return ''
+  const throttle = factorThrottle(userId, 'passkey')
+  await beginFactorAttempt(env.DB, throttle)
+  const now = Date.now()
+  const operation = newId()
+  const recovery = normalizeRecoveryCode(input)
+  let result: D1Result
+  if (recovery) {
+    result = await env.DB.prepare(
+      `UPDATE totp_recovery_codes SET used_at = ?1, used_by = ?2
+       WHERE user_id = ?3 AND code_hash = ?4 AND generation = ?5 AND used_at IS NULL
+       AND EXISTS (SELECT 1 FROM totp_credentials WHERE user_id = ?3 AND enabled_at IS NOT NULL AND recovery_generation = ?5)`,
+    ).bind(now, operation, userId, await hashRecoveryCode(userId, recovery), credential.recovery_generation).run()
+  } else {
+    const secret = await decryptTotpSecret(env, userId, credential.secret_ciphertext)
+    if (!secret) throw factorUnavailable()
+    const step = await matchTotpCode(secret, input, now)
+    if (step === null) return rejectFactor(env.DB, throttle, 'code')
+    result = await env.DB.prepare(
+      `UPDATE totp_credentials SET last_used_step = ?1, last_used_by = ?2, updated_at = ?3
+       WHERE user_id = ?4 AND enabled_at IS NOT NULL AND recovery_generation = ?5
+       AND (last_used_step IS NULL OR last_used_step < ?1)`,
+    ).bind(step, operation, now, userId, credential.recovery_generation).run()
+  }
+  if (!changed(result)) return rejectFactor(env.DB, throttle, 'code')
+  await clearFactorAttempts(env.DB, throttle)
+  return credential.recovery_generation
+}

@@ -1,3 +1,4 @@
+import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 
 
 
@@ -15,6 +16,7 @@ export interface PublicUser {
 }
 
 export interface SiteInfo {
+  passkeyEnabled: boolean
   name: string
 
   initialized: boolean
@@ -575,6 +577,7 @@ export interface ApiErrorBody {
 }
 
 export type ApiErrorCode =
+  | 'passkey_invalid' | 'passkey_expired' | 'passkey_limit' | 'passkey_duplicate' | 'passkey_unavailable'
   | 'unauthenticated'
   | 'forbidden'
   | 'not_found'
@@ -599,3 +602,18 @@ export type ApiErrorCode =
   | 'two_factor_not_enabled'
   | 'two_factor_setup_expired'
   | 'two_factor_unavailable'
+
+export interface PasskeyInfo {
+  id: string
+  name: string
+  createdAt: number
+  lastUsedAt: number | null
+}
+export interface PasskeyRegistrationOptions {
+  challengeId: string
+  options: PublicKeyCredentialCreationOptionsJSON
+}
+export interface PasskeyLoginOptions {
+  challengeId: string
+  options: PublicKeyCredentialRequestOptionsJSON
+}

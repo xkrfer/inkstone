@@ -12,6 +12,11 @@ const messages: Record<AppLocale, Record<string, string>> = {
 };
 let enMessagesCache: Record<string, string> | null = null;
 const apiCodeMessages: Record<string, MessageKey> = {
+    passkey_invalid: 'passkey.invalid',
+    passkey_expired: 'passkey.expired',
+    passkey_limit: 'passkey.limit',
+    passkey_duplicate: 'passkey.duplicate',
+    passkey_unavailable: 'passkey.unavailable',
     unauthenticated: 'api.error.unauthenticated',
     forbidden: 'api.error.forbidden',
     not_found: 'api.error.not_found',

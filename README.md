@@ -107,3 +107,7 @@ Read [`SECURITY.md`](./SECURITY.md) before reporting a vulnerability. Developmen
 ## License
 
 Inkstone is distributed under the [GNU Lesser General Public License v3.0 only](./LICENSE), using the SPDX identifier `LGPL-3.0-only`.
+
+## Passkeys
+
+Existing accounts can add passkeys in Settings → Account and sign in using a fingerprint, face, device PIN or security key. Configure the permanent HTTPS `PUBLIC_URL` to enable this feature. Password login and TOTP remain available. See [passkey setup, recovery boundaries and tests](PASSKEYS.md).

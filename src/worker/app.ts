@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { initializeDatabase } from './db/schema'
 import { ApiError, errorResponse } from './lib/errors'
 import { loadSession, requireClientHeader } from './middleware/auth'
+import { passkeyRoutes } from './routes/passkeys'
 import { authRoutes } from './routes/auth'
 import { totpRoutes } from './routes/totp'
 import { notesRoutes } from './routes/notes'
@@ -84,6 +85,7 @@ export function createApp() {
     })
   })
 
+  app.route('/api/auth/passkeys', passkeyRoutes)
   app.route('/api/auth/totp', totpRoutes)
   app.route('/api/auth', authRoutes)
   app.route('/api/notes', notesRoutes)

@@ -1080,6 +1080,7 @@ function demoMcpSettings(now = Date.now()): McpSettingsInfo {
 function siteInfo(state: DemoState) {
   return {
     name: 'Inkstone Demo',
+    passkeyEnabled: false,
     initialized: true,
     registrationOpen: state.registrationOpen,
     r2Enabled: false,

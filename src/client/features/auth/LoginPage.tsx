@@ -8,9 +8,12 @@ import { cn } from '../../lib/cn'
 import { ApiError } from '../../lib/api'
 import { t } from '../../lib/i18n'
 import { initialLoginCredentials } from '../../lib/runtime'
+import { passkeySupported, passkeyMessage, useOnline } from '../../lib/passkeys'
 import { useSession } from '../../store/session'
 
 export function LoginPage() {
+  const online = useOnline()
+  const passkeyLogin = useSession((state) => state.passkeyLogin)
   const initialCredentials = initialLoginCredentials()
   const site = useSession((state) => state.site)
   const authError = useSession((state) => state.authError)
@@ -85,6 +88,16 @@ export function LoginPage() {
       setBusy(false)
       setError(caught instanceof ApiError ? caught.message : t("auth.network_error_try_again"))
     }
+  }
+
+  const submitPasskey = async () => {
+    if (busyRef.current || !online) return
+    busyRef.current = true
+    setBusy(true)
+    setError(null)
+    try { await passkeyLogin() }
+    catch (error) { setError(passkeyMessage(error)) }
+    finally { busyRef.current = false; setBusy(false) }
   }
 
   return (
@@ -201,6 +214,12 @@ export function LoginPage() {
                 ? (firstRun ? t("auth.create_owner_account") : t("auth.sign_up"))
                 : t("auth.sign_in")}
           </button>
+          {!registerMode && !challenge && site?.passkeyEnabled && passkeySupported() && (
+            <button type="button" disabled={busy || !online} onClick={() => void submitPasskey()}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-[var(--r-lg)] border border-[var(--border-default)] text-sm disabled:opacity-50">
+              <KeyRound size={16} />{t('passkey.sign_in')}
+            </button>
+          )}
           {challenge && (
             <div className="flex items-center justify-between gap-3 pt-1">
               <button

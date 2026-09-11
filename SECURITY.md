@@ -18,5 +18,7 @@ Please avoid accessing data that is not yours, degrading a production service, o
 
 ## Security boundaries
 
-Inkstone is self-hosted software, not a hosted service. Deployment owners are responsible for their Cloudflare account, custom domains, access policies, backup destinations, and timely updates. Inkstone does not provide a password-reset bypass; losing the owner password requires restoring from a trusted backup or reinitializing the instance.
+Inkstone is self-hosted software, not a hosted service. Deployment owners are responsible for their Cloudflare account, custom domains, access policies, backup destinations, and timely updates. Inkstone does not provide a password-reset bypass; an enrolled passkey can still provide notebook access after the password is forgotten, but cannot reset that password or authorize password-protected settings. Without a usable sign-in method, recovery requires a trusted full-instance backup or reinitializing the instance. Ordinary note exports contain no account credentials.
 
+
+Passkeys require explicit `PUBLIC_URL` configuration and authenticator user verification. Passkey login is an independent alternative to password plus TOTP. Enrollment and deletion require password reauthentication and the enabled TOTP factor, revoke other sessions, and invalidate pending authorized passkey management challenges. Challenges expire after five minutes and are consumed with conditional D1 writes; public credential state and session creation are committed in the same atomic batch. See [PASSKEYS.md](PASSKEYS.md) for domain and recovery constraints.

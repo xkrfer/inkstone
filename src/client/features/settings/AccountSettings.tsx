@@ -10,6 +10,7 @@ import { t } from '../../lib/i18n'
 import { useSession } from '../../store/session'
 import { useUi } from '../../store/ui'
 import { AvatarPicker } from './AvatarPicker'
+import { PasskeySettings } from './PasskeySettings'
 import { TotpSettings } from './TotpSettings'
 
 export function AccountSettings() {
@@ -27,6 +28,7 @@ export function AccountSettings() {
         <div className="space-y-2">
           <PasswordSection />
           <TotpSettings />
+          <PasskeySettings key={user.id} />
         </div>
       </section>
 

@@ -108,3 +108,7 @@ tests/        跨模块回归测试
 ## 许可证
 
 Inkstone 使用 [GNU Lesser General Public License v3.0 only](./LICENSE)，SPDX 标识为 `LGPL-3.0-only`。
+
+## 通行密钥
+
+已有账号可在「设置 → 账号」添加通行密钥，通过指纹、面容、设备 PIN 或安全密钥登录。部署时配置长期使用的 HTTPS `PUBLIC_URL` 即可启用。密码登录及 TOTP 保留；通行密钥不能用于重设忘记的密码，更换域名需要重新绑定。参见[配置、恢复边界与测试说明](PASSKEYS.md)。

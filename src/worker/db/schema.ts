@@ -1,9 +1,11 @@
 /** Defines the idempotent final D1 schema initialized by every Worker isolate. */
 import type { DatabaseState, Env } from '../env'
 import { getMeta, setMeta } from './metadata'
+import { PASSKEY_SCHEMA } from './passkey-schema'
 
 
 export const SCHEMA_STATEMENTS: readonly string[] = [
+  ...PASSKEY_SCHEMA,
   `CREATE TABLE IF NOT EXISTS app_meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -505,6 +507,7 @@ const SCHEMA_MIGRATIONS: readonly SchemaMigration[] = [
          ON totp_login_challenges(expires_at)`,
     ],
   },
+  { version: 12, statements: [...PASSKEY_SCHEMA] },
 ]
 
 const FTS_STATEMENT = `CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
@@ -525,6 +528,8 @@ const INDEX_SCHEMA_STATEMENTS = SCHEMA_STATEMENTS.filter((statement) =>
 )
 
 const REQUIRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
+  passkey_credentials: ['id', 'user_id', 'public_key', 'counter', 'transports', 'device_type', 'backed_up', 'name', 'created_at', 'last_used_at', 'revision'],
+  webauthn_challenges: ['id', 'challenge', 'purpose', 'user_id', 'session_id', 'browser_hash', 'password_hash', 'totp_generation', 'expires_at', 'created_at', 'claimed_by'],
   app_meta: ['key', 'value'],
   schema_migrations: ['version', 'applied_at'],
   users: ['id', 'username', 'password_hash', 'login', 'name', 'avatar_url', 'role', 'settings', 'created_at', 'last_seen_at'],
@@ -556,6 +561,7 @@ const REQUIRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
 } as const
 
 const REQUIRED_TABLES = [
+  'passkey_credentials', 'webauthn_challenges',
   'app_meta',
   'schema_migrations',
   'users',
@@ -587,6 +593,7 @@ const REQUIRED_TABLES = [
 ] as const
 
 const REQUIRED_INDEXES = [
+  'idx_passkeys_user', 'idx_webauthn_user', 'idx_webauthn_expires', 'idx_webauthn_claimed',
   'idx_folders_user',
   'idx_folders_unique_sibling',
   'idx_notes_user_updated',

@@ -1,3 +1,5 @@
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/browser'
+import type { PasskeyInfo, PasskeyLoginOptions, PasskeyRegistrationOptions } from '@shared/types'
 import { CLIENT_HEADER } from '@shared/constants'
 import type { MarkdownBackupManifest } from '@shared/backup-format'
 import type {
@@ -269,6 +271,15 @@ export const api = {
   logout: () => request<{ ok: true }>('/api/auth/logout', { method: 'POST' }),
 
   auth: {
+    passkeys: {
+      list: () => request<PasskeyInfo[]>('/api/auth/passkeys'),
+      registrationOptions: (currentPassword: string, code: string) => request<PasskeyRegistrationOptions>('/api/auth/passkeys/registration/options', { method: 'POST', body: { currentPassword, code } }),
+      register: (challengeId: string, response: RegistrationResponseJSON, name: string) => request<PasskeyInfo>('/api/auth/passkeys/registration/verify', { method: 'POST', body: { challengeId, response, name } }),
+      loginOptions: () => request<PasskeyLoginOptions>('/api/auth/passkeys/login/options', { method: 'POST' }),
+      login: (challengeId: string, response: AuthenticationResponseJSON) => request<SessionInfo>('/api/auth/passkeys/login/verify', { method: 'POST', body: { challengeId, response } }),
+      rename: (id: string, name: string) => request<{ ok: true }>(`/api/auth/passkeys/${encodeURIComponent(id)}`, { method: 'PATCH', body: { name } }),
+      delete: (id: string, currentPassword: string, code: string) => request<{ ok: true }>(`/api/auth/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE', body: { currentPassword, code } }),
+    },
     register: (username: string, password: string, locale: AppLocale = getLocale()) =>
       request<SessionInfo>('/api/auth/register', {
         method: 'POST',
