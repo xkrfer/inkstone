@@ -630,6 +630,33 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
         node.setAttribute('rel', 'noopener noreferrer');
     }
 });
+export interface MarkdownBlock {
+    startLine: number;
+    endLine: number;
+    html: string;
+}
+
+/** Parse once with the full document environment so reference links retain their targets. */
+export function renderMarkdownBlocks(source: string): { blocks: MarkdownBlock[]; headings: Heading[] } {
+    const env = emptyEnvironment();
+    const tokens = md.parse(stripObsidianComments(source), env);
+    const blocks: MarkdownBlock[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i]!;
+        if (!token.map || token.level !== 0 || token.nesting === -1) continue;
+        let end = i + 1;
+        if (token.nesting === 1) {
+            let depth = 1;
+            while (end < tokens.length && depth > 0) depth += tokens[end++]!.nesting;
+        }
+        const raw = md.renderer.render(tokens.slice(i, end), md.options, env);
+        const html = materializeTrustedTasks(DOMPurify.sanitize(raw, PURIFY_CONFIG), env.taskNonce);
+        if (html.trim()) blocks.push({ startLine: token.map[0], endLine: token.map[1], html });
+        i = end - 1;
+    }
+    return { blocks, headings: env.headings };
+}
+
 export function renderMarkdown(source: string): RenderResult {
     const env = emptyEnvironment();
     const raw = md.render(stripObsidianComments(source), env);

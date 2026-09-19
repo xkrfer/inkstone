@@ -131,7 +131,7 @@ async function trimChangeLog(env: Env): Promise<void> {
   let afterUserId = ''
   while (true) {
     const { results } = await env.DB.prepare(
-      `SELECT DISTINCT user_id FROM changes WHERE user_id > ?1 ORDER BY user_id LIMIT ?2`,
+      `SELECT id AS user_id FROM users WHERE id > ?1 ORDER BY id LIMIT ?2`,
     )
       .bind(afterUserId, USER_PAGE_SIZE)
       .all<{ user_id: string }>()

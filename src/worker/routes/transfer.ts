@@ -1405,9 +1405,8 @@ async function updateImportedNote(
       c.env.DB.prepare(
         `DELETE FROM note_versions WHERE note_id = ?1
            AND ${shiftSqlPlaceholders(mutationGuard, 1)}
-           AND id NOT IN (
-             SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC LIMIT ?8
-           )`,
+           AND id IN (
+             SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?8)`,
       ).bind(current.id, ...mutationValues, LIMITS.versionsPerNote),
     )
   }

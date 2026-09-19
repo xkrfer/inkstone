@@ -20,6 +20,8 @@ npm run dev
 
 The local application is available at `http://localhost:7712`. Wrangler stores local D1, R2, and Durable Object state under `.wrangler/state/`.
 
+`npm run dev` omits the Workers AI binding so startup does not wait for a remote AI connection. The local Worker and MCP remain available, with keyword search instead of AI semantic search. Use `npm run dev:ai` to test real Workers AI (requires Cloudflare authentication and network access). Production builds keep the AI binding from `wrangler.toml`.
+
 ## Required checks
 
 Run the relevant focused tests while developing, then run the complete release gates before opening a pull request:

@@ -432,7 +432,8 @@ export async function previewMcpTagChange(
   const normalizedName = nextName == null ? null : normalizeTagName(nextName)
   const [usage, destination] = await Promise.all([
     db.prepare(
-      `SELECT COUNT(*) AS total FROM note_tags WHERE user_id = ?1 AND tag_id = ?2`,
+      `SELECT COUNT(*) AS total FROM note_tags nt JOIN notes n ON n.id = nt.note_id
+        WHERE n.user_id = ?1 AND nt.tag_id = ?2`,
     ).bind(userId, tagId).first<{ total: number }>(),
     normalizedName ? loadTagByName(db, userId, normalizedName, tagId) : Promise.resolve(null),
   ])

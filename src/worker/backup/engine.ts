@@ -261,8 +261,8 @@ async function persistRun(env: Env, userId: string, run: BackupRun, note?: strin
       detail,
     ),
     env.DB.prepare(
-      `DELETE FROM backup_runs WHERE user_id = ?1 AND id NOT IN (
-         SELECT id FROM backup_runs WHERE user_id = ?1 ORDER BY started_at DESC LIMIT ?2
+      `DELETE FROM backup_runs WHERE id IN (
+         SELECT id FROM backup_runs WHERE user_id = ?1 ORDER BY started_at DESC, id DESC LIMIT -1 OFFSET ?2
        )`,
     ).bind(userId, LIMITS.backupRunsKept),
   ])

@@ -148,8 +148,9 @@ export async function verifyMcpApiKey(
   ).bind(keyHash).first<ApiKeyRow>()
   if (!row || (row.role !== 'owner' && row.role !== 'member')) return null
   if (!row.last_used_at || now - row.last_used_at > LAST_USED_WRITE_INTERVAL_MS) {
-    await db.prepare(`UPDATE mcp_api_keys SET last_used_at = ?1 WHERE key_hash = ?2`)
-      .bind(now, keyHash).run()
+    await db.prepare(`UPDATE mcp_api_keys SET last_used_at = ?1 WHERE key_hash = ?2
+      AND (last_used_at IS NULL OR last_used_at < ?3)`)
+      .bind(now, keyHash, now - LAST_USED_WRITE_INTERVAL_MS).run()
   }
   return {
     userId: row.user_id,

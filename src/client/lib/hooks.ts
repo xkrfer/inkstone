@@ -20,7 +20,8 @@ export type Breakpoint = 'mobile' | 'tablet' | 'desktop'
 export function useBreakpoint(): Breakpoint {
   const wide = useMediaQuery('(min-width: 1180px)')
   const medium = useMediaQuery('(min-width: 768px)')
-  return wide ? 'desktop' : medium ? 'tablet' : 'mobile'
+  const touchLandscape = useMediaQuery('(pointer: coarse) and (max-height: 600px) and (max-width: 1179px)')
+  return touchLandscape ? 'mobile' : wide ? 'desktop' : medium ? 'tablet' : 'mobile'
 }
 
 

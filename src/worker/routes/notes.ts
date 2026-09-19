@@ -26,7 +26,7 @@ import { isValidId, newId } from '../lib/id'
 import { broadcastCursor, scheduleFtsDrain } from '../lib/notify'
 import { assertContentSize, clampInt, JSON_BODY_LIMITS, readJson } from '../lib/request'
 import { requireAuth } from '../middleware/auth'
-import { enqueueNoteIndex, noteIndexQueueStatement } from '../mcp/ai-search'
+import { aiDeleteNeededSql, enqueueNoteIndex, noteIndexQueueStatement } from '../mcp/ai-search'
 
 export const notesRoutes = new Hono<AppBindings>()
 
@@ -220,7 +220,8 @@ notesRoutes.post('/trash/empty', async (c) => {
       c.env.DB.prepare(
         `INSERT OR REPLACE INTO ai_index_queue (user_id, note_id, kind, created_at)
          SELECT ?1, id, 'delete', ?2
-           FROM notes WHERE user_id = ?1 AND deleted_at IS NOT NULL`,
+           FROM notes WHERE user_id = ?1 AND deleted_at IS NOT NULL
+             AND ${aiDeleteNeededSql('?1', 'notes.id')}`,
       ).bind(userId, Date.now()),
       c.env.DB
         .prepare(
@@ -417,12 +418,12 @@ notesRoutes.patch('/:id', async (c) => {
     push(sets, binds, 'title', newTitle)
   }
 
-  if (body.folderId !== undefined) {
+  if (body.folderId !== undefined && body.folderId !== row.folder_id) {
     push(sets, binds, 'folder_id', await resolveFolderId(c.env.DB, userId, body.folderId))
   }
-  if (typeof body.isPinned === 'boolean') push(sets, binds, 'is_pinned', body.isPinned ? 1 : 0)
-  if (typeof body.isStarred === 'boolean') push(sets, binds, 'is_starred', body.isStarred ? 1 : 0)
-  if (typeof body.isArchived === 'boolean') push(sets, binds, 'is_archived', body.isArchived ? 1 : 0)
+  if (typeof body.isPinned === 'boolean' && Number(body.isPinned) !== row.is_pinned) push(sets, binds, 'is_pinned', body.isPinned ? 1 : 0)
+  if (typeof body.isStarred === 'boolean' && Number(body.isStarred) !== row.is_starred) push(sets, binds, 'is_starred', body.isStarred ? 1 : 0)
+  if (typeof body.isArchived === 'boolean' && Number(body.isArchived) !== row.is_archived) push(sets, binds, 'is_archived', body.isArchived ? 1 : 0)
 
   if (!sets.length) return c.json(toNote(row))
 
@@ -445,6 +446,7 @@ notesRoutes.patch('/:id', async (c) => {
 
   if (contentChanged && !body.quiet && row.content) {
     const bigChange = Math.abs(newContent.length - row.content.length) >= SNAPSHOT_DIFF_THRESHOLD
+    const snapshotId = newId()
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO note_versions (id, note_id, user_id, title, content, size, created_at)
@@ -455,17 +457,17 @@ notesRoutes.patch('/:id', async (c) => {
                  OR ?15 - COALESCE((SELECT MAX(created_at) FROM note_versions WHERE note_id = ?2), 0) > ?16
                  OR ?17 = 1)`,
       ).bind(
-        newId(), id, userId, row.title, row.content, utf8ByteLength(row.content), now,
+        snapshotId, id, userId, row.title, row.content, utf8ByteLength(row.content), now,
         ...mutationValues,
         body.preserveVersion ? 1 : 0, now, SNAPSHOT_INTERVAL_MS, bigChange ? 1 : 0,
       ),
       c.env.DB.prepare(
         `DELETE FROM note_versions WHERE note_id = ?1
+           AND EXISTS (SELECT 1 FROM note_versions WHERE id = ?9)
            AND ${shiftSqlPlaceholders(mutationGuard, 1)}
-           AND id NOT IN (
-             SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC LIMIT ?8
-           )`,
-      ).bind(id, ...mutationValues, LIMITS.versionsPerNote),
+           AND id IN (
+             SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?8)`,
+      ).bind(id, ...mutationValues, LIMITS.versionsPerNote, snapshotId),
     )
   }
 
@@ -491,7 +493,7 @@ notesRoutes.patch('/:id', async (c) => {
         c.env.DB.prepare(
           `DELETE FROM tags WHERE user_id = ?1 AND is_manual = 0
              AND ${shiftSqlPlaceholders(mutationGuard, 1)}
-             AND id NOT IN (SELECT tag_id FROM note_tags)`,
+             AND NOT EXISTS (SELECT 1 FROM note_tags WHERE tag_id = tags.id)`,
         ).bind(userId, ...mutationValues),
       )
     }
@@ -599,7 +601,8 @@ notesRoutes.delete('/:id', async (c) => {
   statements.push(
     c.env.DB.prepare(
       `INSERT OR REPLACE INTO ai_index_queue (user_id, note_id, kind, created_at)
-       SELECT ?1, ?2, 'delete', ?3 WHERE ${shiftSqlPlaceholders(guard, 3)}`,
+       SELECT ?1, ?2, 'delete', ?3 WHERE ${shiftSqlPlaceholders(guard, 3)}
+         AND ${aiDeleteNeededSql('?1', '?2')}`,
     ).bind(userId, id, now, id, userId, nextRev),
   )
   statements.push(
@@ -708,7 +711,8 @@ notesRoutes.delete('/:id/purge', async (c) => {
   statements.push(
     c.env.DB.prepare(
       `INSERT OR REPLACE INTO ai_index_queue (user_id, note_id, kind, created_at)
-       SELECT ?1, ?2, 'delete', ?3 WHERE ${shiftSqlPlaceholders(guard, 3)}`,
+       SELECT ?1, ?2, 'delete', ?3 WHERE ${shiftSqlPlaceholders(guard, 3)}
+         AND ${aiDeleteNeededSql('?1', '?2')}`,
     ).bind(userId, id, Date.now(), id, userId, row.rev),
   )
   statements.push(
@@ -722,7 +726,7 @@ notesRoutes.delete('/:id/purge', async (c) => {
     ).bind(id, userId, row.rev),
     c.env.DB.prepare(`DELETE FROM tags
       WHERE user_id = ?1 AND is_manual = 0
-        AND id NOT IN (SELECT tag_id FROM note_tags)`)
+        AND NOT EXISTS (SELECT 1 FROM note_tags WHERE tag_id = tags.id)`)
       .bind(userId),
   )
   const results = await c.env.DB.batch(statements)
@@ -911,7 +915,7 @@ notesRoutes.post('/:id/versions/:versionId/restore', async (c) => {
   const trimVersions = c.env.DB.prepare(
     `DELETE FROM note_versions WHERE note_id = ?1
        AND ${shiftSqlPlaceholders(mutationGuard, 1)}
-       AND id NOT IN (SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC LIMIT ?8)`,
+       AND id IN (SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?8)`,
   ).bind(id, ...mutationValues, LIMITS.versionsPerNote)
   const derived = buildNoteDerivedStatements({
     db: c.env.DB,
@@ -1060,7 +1064,7 @@ async function rewriteInboundWikiLinks(
         db.prepare(
           `DELETE FROM note_versions WHERE note_id = ?1
              AND ${shiftSqlPlaceholders(guard, 1)}
-             AND id NOT IN (SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC LIMIT ?8)`,
+             AND id IN (SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?8)`,
         ).bind(note.id, ...guardValues, LIMITS.versionsPerNote),
       ]
       statements.push(...buildNoteDerivedStatements({

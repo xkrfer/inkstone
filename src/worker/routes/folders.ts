@@ -5,11 +5,13 @@ import { truncateText } from '@shared/text-utils'
 import type { Folder } from '@shared/types'
 import type { AppBindings } from '../env'
 import { toFolder, type FolderRow } from '../db/rows'
+import { FTS_QUEUE_CONFLICT_SQL } from '../db/writes'
 import { ApiError } from '../lib/errors'
 import { isValidId, newId } from '../lib/id'
 import { broadcastCursor } from '../lib/notify'
 import { JSON_BODY_LIMITS, readJson } from '../lib/request'
 import { requireAuth } from '../middleware/auth'
+import { aiDeleteNeededSql } from '../mcp/ai-search'
 
 export const foldersRoutes = new Hono<AppBindings>()
 
@@ -347,7 +349,8 @@ foldersRoutes.delete('/:id', async (c) => {
       c.env.DB.prepare(
         `${tree} INSERT OR REPLACE INTO ai_index_queue (user_id, note_id, kind, created_at)
          SELECT ?2, id, 'delete', ?4 FROM notes
-          WHERE user_id = ?2 AND folder_id IN (SELECT id FROM subtree)`,
+          WHERE user_id = ?2 AND folder_id IN (SELECT id FROM subtree)
+            AND ${aiDeleteNeededSql('?2', 'notes.id')}`,
       ).bind(id, userId, row.updated_at, now),
       c.env.DB.prepare(`${tree} DELETE FROM links WHERE source_note_id IN (${noteIds})`)
         .bind(id, userId, row.updated_at),
@@ -363,8 +366,11 @@ foldersRoutes.delete('/:id', async (c) => {
     ]
     if (ftsEnabled) {
       statements.push(
-        c.env.DB.prepare(`${tree} DELETE FROM notes_fts WHERE note_id IN (${noteIds})`)
-          .bind(id, userId, row.updated_at),
+        c.env.DB.prepare(`${tree}
+          INSERT INTO fts_index_queue (user_id, note_id, kind, created_at)
+          SELECT ?2, id, 'delete', ?4 FROM notes WHERE id IN (${noteIds})
+          ${FTS_QUEUE_CONFLICT_SQL}`)
+          .bind(id, userId, row.updated_at, now),
       )
     }
     statements.push(

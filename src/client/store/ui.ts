@@ -42,7 +42,7 @@ interface UiState {
   workspaceSecondaryNoteId: string | null
   activeWorkspacePane: WorkspacePane
   workspacePaneLayouts: Record<WorkspacePane, EditorLayout>
-  mobilePane: 'nav' | 'list' | 'editor' | 'preview'
+  mobilePane: 'nav' | 'list' | 'editor' | 'preview' | 'account'
 
 
   view: ViewKind
@@ -128,7 +128,7 @@ const DEFAULTS = {
   workspacePrimaryNoteId: null as string | null,
   workspaceSecondaryNoteId: null as string | null,
   activeWorkspacePane: 'primary' as WorkspacePane,
-  workspacePaneLayouts: { primary: 'edit', secondary: 'edit' } as Record<WorkspacePane, EditorLayout>,
+  workspacePaneLayouts: { primary: 'live', secondary: 'live' } as Record<WorkspacePane, EditorLayout>,
   recentNoteIds: [] as string[],
   theme: 'system' as ThemePref,
   accent: 'indigo' as AccentName,
@@ -211,8 +211,8 @@ function loadPersisted(): Partial<UiState> {
     if (value.workspacePaneLayouts && typeof value.workspacePaneLayouts === 'object' && !Array.isArray(value.workspacePaneLayouts)) {
       const layouts = value.workspacePaneLayouts as Record<string, unknown>
       out.workspacePaneLayouts = {
-        primary: isChoice(layouts.primary, ['edit', 'split', 'preview']) ? layouts.primary as EditorLayout : 'edit',
-        secondary: isChoice(layouts.secondary, ['edit', 'split', 'preview']) ? layouts.secondary as EditorLayout : 'edit',
+        primary: layouts.primary === 'preview' ? 'preview' : layouts.primary === 'split' ? 'split' : 'live',
+        secondary: layouts.secondary === 'preview' ? 'preview' : layouts.secondary === 'split' ? 'split' : 'live',
       }
     }
     if (Array.isArray(value.recentNoteIds)) {

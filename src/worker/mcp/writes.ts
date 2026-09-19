@@ -3,6 +3,7 @@ import { countText, deriveExcerpt, deriveTitle } from '@shared/markdown-utils'
 import { truncateText, utf8ByteLength } from '@shared/text-utils'
 import type { Note } from '@shared/types'
 import { NOTE_COLUMNS_FULL, toNote, type NoteRow } from '../db/rows'
+import { FTS_NOTE_MATCH_SQL } from '../db/fts'
 import { buildNoteDerivedStatements, LINK_TARGET_SUBQUERY } from '../db/writes'
 import type { Env } from '../env'
 import { sha256Hex } from '../lib/encoding'
@@ -193,7 +194,7 @@ export async function trashMcpNote(
       if (context.ftsEnabled) {
         statements.push(
           context.env.DB.prepare(
-            `DELETE FROM notes_fts WHERE note_id = ?1 AND ${shiftSqlPlaceholders(guard, 1)}`,
+            `DELETE FROM notes_fts WHERE ${FTS_NOTE_MATCH_SQL} AND note_id = ?1 AND ${shiftSqlPlaceholders(guard, 1)}`,
           ).bind(row.id, row.id, context.userId, nextRev),
         )
       }
@@ -309,12 +310,12 @@ async function patchNote(
     newTitle = resolveTitle(patch.title)
     push(sets, binds, 'title', newTitle)
   }
-  if (Object.prototype.hasOwnProperty.call(patch, 'folderId')) {
+  if (Object.prototype.hasOwnProperty.call(patch, 'folderId') && patch.folderId !== row.folder_id) {
     push(sets, binds, 'folder_id', await resolveFolderId(context.env.DB, context.userId, patch.folderId))
   }
-  if (patch.isPinned !== undefined) push(sets, binds, 'is_pinned', patch.isPinned ? 1 : 0)
-  if (patch.isStarred !== undefined) push(sets, binds, 'is_starred', patch.isStarred ? 1 : 0)
-  if (patch.isArchived !== undefined) push(sets, binds, 'is_archived', patch.isArchived ? 1 : 0)
+  if (patch.isPinned !== undefined && Number(patch.isPinned) !== row.is_pinned) push(sets, binds, 'is_pinned', patch.isPinned ? 1 : 0)
+  if (patch.isStarred !== undefined && Number(patch.isStarred) !== row.is_starred) push(sets, binds, 'is_starred', patch.isStarred ? 1 : 0)
+  if (patch.isArchived !== undefined && Number(patch.isArchived) !== row.is_archived) push(sets, binds, 'is_archived', patch.isArchived ? 1 : 0)
   if (!sets.length) return toNote(row)
 
   push(sets, binds, 'updated_at', now)
@@ -344,9 +345,8 @@ async function patchNote(
       context.env.DB.prepare(
         `DELETE FROM note_versions WHERE note_id = ?1
            AND ${shiftSqlPlaceholders(mutationGuard, 1)}
-           AND id NOT IN (
-             SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC LIMIT ?8
-           )`,
+           AND id IN (
+             SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?8)`,
       ).bind(row.id, ...mutationValues, LIMITS.versionsPerNote),
     )
   }
@@ -371,7 +371,7 @@ async function patchNote(
         context.env.DB.prepare(
           `DELETE FROM tags WHERE user_id = ?1 AND is_manual = 0
              AND ${shiftSqlPlaceholders(mutationGuard, 1)}
-             AND id NOT IN (SELECT tag_id FROM note_tags)`,
+             AND NOT EXISTS (SELECT 1 FROM note_tags WHERE tag_id = tags.id)`,
         ).bind(context.userId, ...mutationValues),
       )
     }

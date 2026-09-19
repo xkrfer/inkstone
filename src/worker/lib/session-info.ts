@@ -7,7 +7,7 @@ import { rowToUser, USER_COLUMNS } from '../middleware/auth'
 import { getAllowRegistration } from './instance-settings'
 
 export async function buildSiteInfo(env: Env): Promise<SiteInfo> {
-  const row = await env.DB.prepare(`SELECT COUNT(*) AS n FROM users`).first<{ n: number }>()
+  const row = await env.DB.prepare(`SELECT 1 AS n FROM users LIMIT 1`).first<{ n: number }>()
   return {
     passkeyEnabled: Boolean(passkeyConfig(env)),
     name: env.APP_NAME || 'Inkstone',

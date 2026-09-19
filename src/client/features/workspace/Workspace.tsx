@@ -9,11 +9,11 @@ import type { EditorLayout } from '@shared/types';
 import { fullTime } from '../../lib/time';
 import { useBreakpoint, useRelativeTime } from '../../lib/hooks';
 import { prettyCombo } from '../../lib/hotkeys';
-import { IconButton } from '../../components/primitives';
+import { Button, IconButton } from '../../components/primitives';
 import { Drawer, Menu, Tooltip, type MenuItem } from '../../components/overlay';
 import { Segmented } from '../../components/form';
 import { EditorSkeleton, Empty } from '../../components/feedback';
-import { CodeEditor } from '../../editor/CodeEditor';
+import { DeferredCodeEditor } from '../../editor/CodeEditor';
 import { insertFiles } from '../../editor/paste';
 import { optimizeImageFile } from '../../lib/image';
 import { exportNoteAsHtml, exportNoteAsMarkdown, exportNoteAsPdf } from '../../lib/export-note';
@@ -34,13 +34,13 @@ import { preferredScrollBehavior } from '../../lib/motion';
 const SPLIT_HANDLE_WIDTH = 1;
 const PREVIEW_BORDER_WIDTH = 1;
 const OUTLINE_WIDTH = 168;
-export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active', grouped = false, }: {
-    mobileLayout?: 'edit' | 'preview';
+export function Workspace({ onMobileBack, pane = 'active', grouped = false, }: {
     onMobileBack?: () => void;
     pane?: WorkspacePane | 'active';
     grouped?: boolean;
 } = {}) {
     const { note, content, loaded } = useActiveNote(pane);
+    const loadError = useNotes((s) => note ? s.noteLoadErrors[note.id] : undefined);
     const settings = useSession((s) => s.settings);
     const updateSettings = useSession((s) => s.updateSettings);
     const editContent = useNotes((s) => s.editContent);
@@ -78,13 +78,12 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
     const [containerWidth, setContainerWidth] = useState(0);
     const isMobile = breakpoint === 'mobile';
     const paneActive = !grouped || pane === 'active' || activeWorkspacePane === pane;
-    const layout = isMobile
-        ? mobileLayout
-        : grouped && pane !== 'active'
+    const mobilePane = useUi((s) => s.mobilePane);
+    const layout = isMobile ? (mobilePane === 'preview' ? 'preview' : 'live') : grouped && pane !== 'active'
             ? workspacePaneLayouts[pane]
             : settings.preview.layout;
-    const showEditor = layout === 'edit' || layout === 'split';
-    const showPreview = layout === 'preview' || layout === 'split';
+    const showEditor = layout !== 'preview';
+    const showPreview = layout !== 'live';
     const outlineVisible = !isMobile && outlineOpen && paneActive && headings.length > 0;
     const defaultOutlineWidth = outlineVisible ? OUTLINE_WIDTH : 0;
     const defaultContentWidth = Math.max(0, containerWidth - SPLIT_HANDLE_WIDTH - PREVIEW_BORDER_WIDTH - defaultOutlineWidth);
@@ -184,30 +183,40 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
     }, [view]);
     const invalidateSyncAnchors = useSyncScroll(view, previewScrollerRef, settings.preview.syncScroll && layout === 'split');
     const jumpToHeading = useCallback((heading: Heading) => {
-        if (view) {
+        if (view && showEditor) {
             const line = Math.min(view.state.doc.lines, heading.line + 1);
             const pos = view.state.doc.line(line).from;
             view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+            view.focus();
         }
         const target = previewScrollerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(heading.slug)}`);
         target?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'start', inline: 'nearest' });
-    }, [view]);
+    }, [view, showEditor]);
     useEffect(() => {
-        if (!note || !paneActive)
+        if (!note || !paneActive || !showEditor)
             return;
         const frame = window.requestAnimationFrame(() => {
             if (!note.title)
                 titleInputRef.current?.focus();
-            else
+            else if (!isMobile)
                 view?.focus();
         });
         return () => window.cancelAnimationFrame(frame);
-    }, [note?.id, paneActive, view]);
+    }, [note?.id, paneActive, view, showEditor, isMobile]);
     if (!note)
         return <NoNoteSelected onCreate={() => void createContextualNote()}/>;
     if (!loaded) {
-        return (<div className="h-full overflow-hidden bg-[var(--bg-editor)]" aria-busy="true" aria-label={t("workspace.loading_note_content")}>
-        <EditorSkeleton />
+        return (<div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg-editor)]" aria-busy={!loadError}>
+        <header className="flex h-11 shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] px-3">
+          {isMobile && onMobileBack && <IconButton label={t("workspace.back_to_notes")} size="sm" onClick={onMobileBack}><ArrowLeft size={16}/></IconButton>}
+          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{note.title || t("common.untitled_note")}</span>
+          {grouped && pane === 'secondary' && <IconButton label={t("workspace.close_right_note")} size="sm" onClick={closeSecondaryNote}><X size={15}/></IconButton>}
+        </header>
+        <div role="status" className="flex items-center gap-3 px-5 py-4 text-[13px] text-[var(--text-secondary)]">
+          <span>{loadError || t("workspace.loading_note_content")}</span>
+          {loadError && <Button size="sm" variant="secondary" onClick={() => void useNotes.getState().openNote(note.id, pane === 'active' ? undefined : { pane, activate: paneActive })}>{t("common.retry")}</Button>}
+        </div>
+        {!loadError && <div className="min-h-0 flex-1 overflow-hidden"><EditorSkeleton /></div>}
       </div>);
     }
     const noteFolder = note.folderId ? folders.find((folder) => folder.id === note.folderId) ?? null : null;
@@ -241,6 +250,10 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
         { id: 'pdf', label: t("workspace.export_pdf"), icon: <FileDown size={13}/>, onSelect: () => void exportNote('pdf') },
     ];
     const mobileItems: MenuItem[] = [
+        ...(isMobile ? [
+            { id: 'star', label: note.isStarred ? t("common.remove_from_favorites") : t("navigation.favorites"), checked: note.isStarred, onSelect: () => void patchNote(note.id, { isStarred: !note.isStarred }) },
+            { id: 'backlinks', label: t("common.backlinks"), checked: backlinksOpen, onSelect: toggleBacklinks },
+        ] : []),
         {
             id: 'versions',
             label: t("common.version_history"),
@@ -273,9 +286,9 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
         },
     ];
     const groupedItems: MenuItem[] = [
-        { id: 'layout-edit', label: t("workspace.edit_only"), checked: layout === 'edit', onSelect: () => setEditorLayout('edit') },
+        { id: 'layout-live', label: t("workspace.live_preview"), checked: layout === 'live', onSelect: () => setEditorLayout('live') },
         { id: 'layout-split', label: t("workspace.split_view"), checked: layout === 'split', onSelect: () => setEditorLayout('split') },
-        { id: 'layout-preview', label: t("workspace.preview_only"), checked: layout === 'preview', onSelect: () => setEditorLayout('preview') },
+        { id: 'layout-preview', label: t("workspace.reading_mode"), checked: layout === 'preview', onSelect: () => setEditorLayout('preview') },
         {
             id: 'star',
             label: note.isStarred ? t("common.remove_from_favorites") : t("navigation.favorites"),
@@ -290,13 +303,13 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
             checked: backlinksOpen && paneActive,
             onSelect: toggleBacklinks,
         },
-        ...(showPreview ? [{
+        {
             id: 'outline',
             label: t("common.outline"),
             icon: <ListTree size={13}/>,
             checked: outlineOpen && paneActive,
             onSelect: toggleOutline,
-        } satisfies MenuItem] : []),
+        },
         ...mobileItems,
     ];
     const activatePane = () => {
@@ -315,6 +328,7 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
             ref={titleInputRef}
             type="text"
             value={note.title}
+            readOnly={isMobile && mobilePane === 'preview'}
             maxLength={LIMITS.titleMaxLength}
             aria-label={t("workspace.note_title")}
             placeholder={t("common.untitled_note")}
@@ -338,9 +352,9 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
           {grouped ? (<>
             <div className="mr-1 hidden 2xl:block">
               <Segmented label={t("workspace.layout")} size="sm" value={layout} onChange={setEditorLayout} options={[
-                { value: 'edit', label: <Pencil size={12.5}/>, title: t("workspace.edit_only") },
+            { value: 'live', label: <Pencil size={12.5}/>, title: t("workspace.live_preview") },
                 { value: 'split', label: <Columns2 size={12.5}/>, title: t("workspace.split_view") },
-                { value: 'preview', label: <Eye size={12.5}/>, title: t("workspace.preview_only") },
+                { value: 'preview', label: <Eye size={12.5}/>, title: t("workspace.reading_mode") },
               ]}/>
             </div>
             <Tooltip label={t("common.more_actions")} side="left">
@@ -357,14 +371,14 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
           <span className="mr-1 hidden xl:inline-flex">
             <SaveIndicator />
           </span>
-          <div className="mr-1 hidden lg:block">
+          <div className={isMobile ? 'hidden' : 'mr-1'}>
             <Segmented label={t("workspace.layout")} size="sm" value={layout} onChange={setEditorLayout} options={[
-            { value: 'edit', label: <Pencil size={12.5}/>, title: t("workspace.edit_only") },
+            { value: 'live', label: <Pencil size={12.5}/>, title: t("workspace.live_preview") },
             { value: 'split', label: <Columns2 size={12.5}/>, title: t("workspace.split_view"), combo: 'mod+\\' },
-            { value: 'preview', label: <Eye size={12.5}/>, title: t("workspace.preview_only") },
+            { value: 'preview', label: <Eye size={12.5}/>, title: t("workspace.reading_mode") },
         ]}/>
           </div>
-          <Tooltip label={note.isStarred ? t("common.remove_from_favorites") : t("navigation.favorites")} combo="mod+d">
+          {!isMobile && <><Tooltip label={note.isStarred ? t("common.remove_from_favorites") : t("navigation.favorites")} combo="mod+d">
             <IconButton label={note.isStarred ? t("common.remove_from_favorites") : t("navigation.favorites")} size="sm" active={note.isStarred} onClick={() => void patchNote(note.id, { isStarred: !note.isStarred })}>
               <Star size={14} className={note.isStarred ? 'fill-current' : undefined}/>
             </IconButton>
@@ -374,6 +388,7 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
               <LinkIcon size={14}/>
             </IconButton>
           </Tooltip>
+          </>}
           {!isMobile && (<Tooltip label={t("common.version_history")}>
               <IconButton label={t("common.version_history")} size="sm" onClick={() => openPanel('versions')}>
                 <History size={14}/>
@@ -387,7 +402,7 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
               </Tooltip>
               <Menu anchor={exportMenuRef} open={exportMenuOpen} onClose={() => setExportMenuOpen(false)} items={exportMenuItems} align="end" width={200}/>
             </>)}
-          {showPreview && (<Tooltip label={t("common.outline")} combo="mod+shift+o">
+          {(<Tooltip label={t("common.outline")} combo="mod+shift+o">
               <IconButton label={t("common.outline")} size="sm" active={isMobile ? mobileOutlineOpen : outlineOpen} onClick={() => isMobile ? setMobileOutlineOpen((open) => !open) : toggleOutline()}>
                 {(isMobile ? mobileOutlineOpen : outlineOpen) ? <PanelRightClose size={14}/> : <ListTree size={14}/>}
               </IconButton>
@@ -408,23 +423,24 @@ export function Workspace({ mobileLayout = 'edit', onMobileBack, pane = 'active'
 
       {settings.editor.showToolbar && showEditor && (<EditorToolbar runCommand={runEditorCommand} mobile={isMobile} onPickImage={() => fileInputRef.current?.click()}/>)}
 
-      <div ref={containerRef} className="flex min-h-0 flex-1">
-        {showEditor && (<div className="min-w-0" style={{ width: layout === 'split' ? editorWidth : '100%' }}>
-            <CodeEditor key={note.id} value={content} onChange={onChange} settings={settings.editor} sources={sources} handlers={handlers} onReady={setView}/>
-          </div>)}
+      <div ref={containerRef} className={cn("flex min-h-0 flex-1", isMobile && "flex-col")} data-editor-layout={layout}>
+        <div hidden={!showEditor} inert={!showEditor} className="min-h-0 min-w-0" style={{ width: layout === 'split' && !isMobile ? editorWidth : outlineVisible ? `calc(100% - ${OUTLINE_WIDTH}px)` : '100%', flex: isMobile ? 1 : undefined }}>
+            <DeferredCodeEditor key={note.id} visible={showEditor} value={content} noteTitle={note.title} live={layout === 'live'} onHeadings={setHeadings} onChange={onChange} settings={settings.editor} sources={sources} handlers={handlers} onReady={setView}/>
+          </div>
 
-        {layout === 'split' && (<SplitResizer label={t("workspace.resize_editor_and_preview_panes")} containerRef={containerRef} ratio={effectiveSplitRatio} onChange={(splitRatio) => setLayout({ splitRatio })} onReset={() => setLayout({ splitRatio: null })}/>)}
+        {layout === 'split' && !isMobile && (<SplitResizer label={t("workspace.resize_editor_and_preview_panes")} containerRef={containerRef} ratio={effectiveSplitRatio} onChange={(splitRatio) => setLayout({ splitRatio })} onReset={() => setLayout({ splitRatio: null })}/>)}
 
-        {showPreview && (<div className={cn('flex min-w-0 overflow-hidden border-l border-[var(--border-subtle)] bg-[var(--bg-editor)]', layout === 'preview' && 'flex-1 border-l-0')} style={{ width: layout === 'split' ? previewWidth : undefined }}>
+        {showPreview && (<div className={cn('flex min-h-0 min-w-0 overflow-hidden border-l border-[var(--border-subtle)] bg-[var(--bg-editor)]', isMobile && layout === 'split' && 'flex-1 border-l-0 border-t', layout === 'preview' && 'flex-1 border-l-0')} style={{ width: layout === 'split' && !isMobile ? previewWidth : '100%' }}>
             <Preview key={note.id} content={content} noteId={note.id} noteTitle={note.title} onHeadings={setHeadings} scrollerRef={previewScrollerRef} onRendered={invalidateSyncAnchors} className="min-w-0 flex-1"/>
             {outlineVisible && (<Outline headings={headings} onSelect={jumpToHeading} scrollerRef={previewScrollerRef}/>)}
           </div>)}
+        {!showPreview && outlineVisible && <Outline headings={headings} onSelect={jumpToHeading}/>}
       </div>
 
       {backlinksOpen && paneActive && <BacklinksPanel noteId={note.id}/>}
 
       <Menu anchor={moreButtonRef} open={moreMenuOpen} onClose={() => setMoreMenuOpen(false)} items={grouped ? groupedItems : mobileItems} align="end" width={220}/>
-      {isMobile && showPreview && (<Drawer open={mobileOutlineOpen} onClose={() => setMobileOutlineOpen(false)} side="right" width={320} title={t("common.outline")}>
+      {isMobile && (<Drawer open={mobileOutlineOpen} onClose={() => setMobileOutlineOpen(false)} side="right" width={320} title={t("common.outline")}>
           <Outline headings={headings} scrollerRef={previewScrollerRef} className="max-h-none w-full self-stretch py-3" onSelect={(heading) => {
                 jumpToHeading(heading);
                 setMobileOutlineOpen(false);

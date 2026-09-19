@@ -72,6 +72,7 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS idx_notes_trash ON notes(user_id, deleted_at)`,
   `CREATE INDEX IF NOT EXISTS idx_notes_title_key
      ON notes(user_id, title_key, deleted_at, created_at, id)`,
+  `CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id, id)`,
 
   `CREATE TABLE IF NOT EXISTS tags (
     id TEXT PRIMARY KEY,
@@ -82,6 +83,7 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
     created_at INTEGER NOT NULL
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_unique ON tags(user_id, name)`,
+  `CREATE INDEX IF NOT EXISTS idx_tags_name_nocase ON tags(user_id, name COLLATE NOCASE)`,
 
   `CREATE TABLE IF NOT EXISTS note_tags (
     note_id TEXT NOT NULL,
@@ -110,7 +112,8 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
     size INTEGER NOT NULL,
     created_at INTEGER NOT NULL
   )`,
-  `CREATE INDEX IF NOT EXISTS idx_versions_note ON note_versions(note_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_versions_note ON note_versions(note_id, created_at DESC, id DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_versions_user ON note_versions(user_id)`,
 
   `CREATE TABLE IF NOT EXISTS attachments (
     id TEXT PRIMARY KEY,
@@ -178,7 +181,7 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
     bytes INTEGER NOT NULL DEFAULT 0,
     detail TEXT NOT NULL DEFAULT '[]'
   )`,
-  `CREATE INDEX IF NOT EXISTS idx_runs_user ON backup_runs(user_id, started_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_runs_user ON backup_runs(user_id, started_at DESC, id DESC)`,
 
   `CREATE TABLE IF NOT EXISTS shares (
     slug TEXT PRIMARY KEY,
@@ -508,10 +511,22 @@ const SCHEMA_MIGRATIONS: readonly SchemaMigration[] = [
     ],
   },
   { version: 12, statements: [...PASSKEY_SCHEMA] },
+  {
+    version: 13,
+    statements: [
+      `DROP INDEX IF EXISTS idx_versions_note`,
+      `CREATE INDEX idx_versions_note ON note_versions(note_id, created_at DESC, id DESC)`,
+      `DROP INDEX IF EXISTS idx_runs_user`,
+      `CREATE INDEX idx_runs_user ON backup_runs(user_id, started_at DESC, id DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id, id)`,
+      `CREATE INDEX IF NOT EXISTS idx_tags_name_nocase ON tags(user_id, name COLLATE NOCASE)`,
+      `CREATE INDEX IF NOT EXISTS idx_versions_user ON note_versions(user_id)`,
+    ],
+  },
 ]
 
 const FTS_STATEMENT = `CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
-  note_id UNINDEXED,
+  note_id,
   user_id UNINDEXED,
   title,
   body,
@@ -601,11 +616,14 @@ const REQUIRED_INDEXES = [
   'idx_notes_starred',
   'idx_notes_trash',
   'idx_notes_title_key',
+  'idx_notes_user_id',
   'idx_tags_unique',
+  'idx_tags_name_nocase',
   'idx_note_tags_tag',
   'idx_links_target',
   'idx_links_target_note',
   'idx_versions_note',
+  'idx_versions_user',
   'idx_attachments_user',
   'idx_attachments_user_sha',
   'idx_attachments_note',
@@ -671,10 +689,11 @@ async function createSchema(db: D1Database): Promise<DatabaseState> {
   let state: DatabaseState
   try {
     await db.prepare(FTS_STATEMENT).run()
+    await upgradeFtsIdentifiers(db)
     state = { ftsEnabled: true }
   } catch (error) {
     console.warn(
-      '[inkstone] The current database does not support FTS5; search will use LIKE:',
+      '[inkstone] Full-text index initialization or upgrade failed; search will use LIKE:',
       error instanceof Error ? error.message : error,
     )
     state = { ftsEnabled: false }
@@ -686,6 +705,22 @@ async function createSchema(db: D1Database): Promise<DatabaseState> {
     }))
   }
   return state
+}
+
+async function upgradeFtsIdentifiers(db: D1Database): Promise<void> {
+  const table = await db.prepare(
+    `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'notes_fts'`,
+  ).first<{ sql: string }>()
+  if (!table || !/note_id\s+UNINDEXED/i.test(table.sql)) return
+  // Keep the existing indexed text and rowids. The batch either replaces the
+  // complete index or rolls back, including when an old installation retries.
+  await db.batch([
+    db.prepare(FTS_STATEMENT.replace('notes_fts', 'notes_fts_identifiers')),
+    db.prepare(`INSERT INTO notes_fts_identifiers (rowid, note_id, user_id, title, body)
+      SELECT rowid, note_id, user_id, title, body FROM notes_fts`),
+    db.prepare(`DROP TABLE notes_fts`),
+    db.prepare(`ALTER TABLE notes_fts_identifiers RENAME TO notes_fts`),
+  ])
 }
 
 async function applyMigrations(db: D1Database): Promise<void> {

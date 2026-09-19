@@ -146,10 +146,10 @@ export function CommandPalette({ onClose }: {
             {
                 id: 'cmd-layout-edit',
                 kind: 'command',
-                label: t("command.layout_editor_only"),
+                label: t("workspace.live_preview"),
                 icon: <Pencil size={14}/>,
                 group: t("common.interface"),
-                run: () => void updateSettings({ preview: { layout: 'edit' } }),
+                run: () => void updateSettings({ preview: { layout: 'live' } }),
             },
             {
                 id: 'cmd-layout-split',
@@ -163,7 +163,7 @@ export function CommandPalette({ onClose }: {
             {
                 id: 'cmd-layout-preview',
                 kind: 'command',
-                label: t("command.layout_preview_only"),
+                label: t("workspace.reading_mode"),
                 icon: <Eye size={14}/>,
                 group: t("common.interface"),
                 run: () => void updateSettings({ preview: { layout: 'preview' } }),

@@ -116,11 +116,24 @@ export function buildNoteDerivedStatements(
     : '1 = 1'
   if (!guarded) guardValues.length = 0
 
+  const rankedTags = `WITH ranked_tags AS (
+    SELECT candidate.id,
+           ROW_NUMBER() OVER (
+             PARTITION BY json_extract(j.value, '$.name')
+             ORDER BY CASE WHEN candidate.name = json_extract(j.value, '$.name') THEN 0 ELSE 1 END,
+                      candidate.created_at ASC, candidate.id ASC
+           ) AS rank
+      FROM json_each(?2) AS j
+      JOIN tags candidate ON candidate.user_id = ?3
+       AND candidate.name = json_extract(j.value, '$.name') COLLATE NOCASE
+  )`
+
   statements.push(
     db
       .prepare(
         `UPDATE notes SET title_key = ?1
-          WHERE id = ?2 AND user_id = ?3 AND ${shiftPlaceholders(guard, 3)}`,
+          WHERE id = ?2 AND user_id = ?3 AND title_key IS NOT ?1
+            AND ${shiftPlaceholders(guard, 3)}`,
       )
       .bind(normalizeLinkKey(title), noteId, userId, ...guardValues),
   )
@@ -141,25 +154,15 @@ export function buildNoteDerivedStatements(
       .bind(userId, now, tagRows, ...guardValues),
     db
       .prepare(
-        `DELETE FROM note_tags WHERE note_id = ?1
-          AND ${shiftPlaceholders(guard, 1)}`,
+        `${rankedTags}
+         DELETE FROM note_tags WHERE note_id = ?1
+          AND tag_id NOT IN (SELECT id FROM ranked_tags WHERE rank = 1)
+          AND ${shiftPlaceholders(guard, 3)}`,
       )
-      .bind(noteId, ...guardValues),
+      .bind(noteId, tagRows, userId, ...guardValues),
     db
       .prepare(
-        `WITH ranked_tags AS (
-           SELECT candidate.id,
-                  ROW_NUMBER() OVER (
-                    PARTITION BY json_extract(j.value, '$.name')
-                    ORDER BY CASE WHEN candidate.name = json_extract(j.value, '$.name') THEN 0 ELSE 1 END,
-                             candidate.created_at ASC,
-                             candidate.id ASC
-                  ) AS rank
-             FROM json_each(?2) AS j
-             JOIN tags candidate
-               ON candidate.user_id = ?3
-              AND candidate.name = json_extract(j.value, '$.name') COLLATE NOCASE
-         )
+        `${rankedTags}
          INSERT INTO note_tags (note_id, tag_id)
          SELECT ?1, id FROM ranked_tags
           WHERE rank = 1 AND ${shiftPlaceholders(guard, 3)}
@@ -172,9 +175,10 @@ export function buildNoteDerivedStatements(
     db
       .prepare(
         `DELETE FROM links WHERE source_note_id = ?1
-          AND ${shiftPlaceholders(guard, 1)}`,
+          AND target_key NOT IN (SELECT json_extract(value, '$.key') FROM json_each(?2))
+          AND ${shiftPlaceholders(guard, 2)}`,
       )
-      .bind(noteId, ...guardValues),
+      .bind(noteId, opts.deleted ? '[]' : linkRows, ...guardValues),
   )
   if (!opts.deleted) {
     statements.push(
@@ -193,7 +197,9 @@ export function buildNoteDerivedStatements(
             WHERE ${shiftPlaceholders(guard, 3)}
            ON CONFLICT(source_note_id, target_key) DO UPDATE SET
              target_title = excluded.target_title,
-             target_note_id = excluded.target_note_id`,
+             target_note_id = excluded.target_note_id
+           WHERE links.target_title IS NOT excluded.target_title
+              OR links.target_note_id IS NOT excluded.target_note_id`,
         )
         .bind(noteId, userId, linkRows, ...guardValues),
     )
@@ -241,7 +247,7 @@ export async function pruneOrphanTags(db: D1Database, userId: string): Promise<v
     .prepare(
       `DELETE FROM tags
         WHERE user_id = ?1 AND is_manual = 0
-          AND id NOT IN (SELECT tag_id FROM note_tags)`,
+          AND NOT EXISTS (SELECT 1 FROM note_tags WHERE tag_id = tags.id)`,
     )
     .bind(userId)
     .run()

@@ -15,6 +15,7 @@ export type SaveStatus = 'idle' | 'dirty' | 'saving' | 'synced' | 'offline';
 interface NotesState {
     notes: Record<string, NoteSummary>;
     contents: Record<string, string>;
+    noteLoadErrors: Record<string, string>;
     folders: Folder[];
     tags: Tag[];
     cursor: number;
@@ -77,6 +78,7 @@ interface NotesState {
 type SetNotesState = StoreApi<NotesState>['setState'];
 let saveTimer: number | undefined;
 const SUMMARY_DERIVE_DELAY_MS = 70;
+const NOTE_SWITCH_FEEDBACK_DELAY_MS = 180;
 interface PendingSummaryDerivation {
     content: string;
     updatedAt: number;
@@ -146,6 +148,7 @@ const STALE_NOTE_REQUEST = Symbol('stale-note-request');
 export const useNotes = create<NotesState>((set, get) => ({
     notes: {},
     contents: {},
+    noteLoadErrors: {},
     folders: [],
     tags: [],
     cursor: 0,
@@ -404,147 +407,174 @@ export const useNotes = create<NotesState>((set, get) => ({
             revalidateNote(id, summary.rev, set, get);
             return;
         }
-        const cached = await localDb.getContent(id);
-        let currentSummary = get().notes[id];
-        if (requestSequence !== openSequences[targetPane] ||
-            (noteRequestEpochs.get(id) ?? 0) !== requestEpoch ||
-            !currentSummary)
-            return;
-        if (cached) {
-            let restoredPending = false;
-            let foreignPending = false;
-            let visibleContent = cached.content;
-            let visibleTitle: string | undefined;
-            if (cached.writeId) {
-                const outbox = await localDb.getOutbox();
-                currentSummary = get().notes[id];
-                if (requestSequence !== openSequences[targetPane] ||
-                    (noteRequestEpochs.get(id) ?? 0) !== requestEpoch ||
-                    !currentSummary)
-                    return;
-                const existing = outbox.find((item) => item.writeId === cached.writeId && item.noteId === id);
-                const currentId = outboxId(id);
-                const existingContent = existing?.payload.content;
-                const existingTitle = existing?.payload.title;
-                const existingRev = existing?.payload.rev;
-                const validExisting = existing &&
-                    typeof existingContent === 'string' &&
-                    Number.isInteger(existingRev) &&
-                    (existingRev as number) >= 1;
-                if (validExisting) {
+        set((s) => {
+            const noteLoadErrors = { ...s.noteLoadErrors };
+            delete noteLoadErrors[id];
+            return { noteLoadErrors };
+        });
+        // Keep the current document for fast reads; only slow reads need a loading page.
+        let selected = false;
+        let navigationChanged = false;
+        const paneNoteId = (ui: ReturnType<typeof useUi.getState>) => targetPane === 'secondary'
+            ? ui.workspaceSecondaryNoteId
+            : ui.workspaceSecondaryNoteId ? ui.workspacePrimaryNoteId : ui.activeNoteId;
+        const stopWatchingNavigation = useUi.subscribe((ui, previous) => {
+            if (!selected && (paneNoteId(ui) !== paneNoteId(previous) ||
+                ui.mobilePane !== previous.mobilePane || ui.view !== previous.view ||
+                ui.folderId !== previous.folderId || ui.tag !== previous.tag ||
+                (activate && ui.activeWorkspacePane !== previous.activeWorkspacePane)))
+                navigationChanged = true;
+        });
+        const selectTarget = () => {
+            if (selected || navigationChanged || requestSequence !== openSequences[targetPane] ||
+                (noteRequestEpochs.get(id) ?? 0) !== requestEpoch || !get().notes[id])
+                return;
+            selected = true;
+            useUi.getState().setWorkspaceNote(targetPane, id, activate);
+        };
+        const feedbackTimer = window.setTimeout(selectTarget, NOTE_SWITCH_FEEDBACK_DELAY_MS);
+        try {
+            const cached = await localDb.getContent(id);
+            let currentSummary = get().notes[id];
+            if (requestSequence !== openSequences[targetPane] ||
+                (noteRequestEpochs.get(id) ?? 0) !== requestEpoch ||
+                !currentSummary)
+                return;
+            if (cached) {
+                let restoredPending = false;
+                let foreignPending = false;
+                let visibleContent = cached.content;
+                let visibleTitle: string | undefined;
+                if (cached.writeId) {
+                    const outbox = await localDb.getOutbox();
+                    currentSummary = get().notes[id];
+                    if (requestSequence !== openSequences[targetPane] ||
+                        (noteRequestEpochs.get(id) ?? 0) !== requestEpoch ||
+                        !currentSummary)
+                        return;
+                    const existing = outbox.find((item) => item.writeId === cached.writeId && item.noteId === id);
+                    const currentId = outboxId(id);
+                    const existingContent = existing?.payload.content;
+                    const existingTitle = existing?.payload.title;
+                    const existingRev = existing?.payload.rev;
+                    const validExisting = existing &&
+                        typeof existingContent === 'string' &&
+                        Number.isInteger(existingRev) &&
+                        (existingRev as number) >= 1;
+                    if (validExisting) {
 
 
-                    visibleContent = existingContent as string;
-                    visibleTitle = typeof existingTitle === 'string' ? existingTitle : undefined;
-                    if (existing.clientId === CLIENT_ID) {
-                        inheritedOutboxWrites.delete(id);
-                        dirty.set(id, {
-                            ...(typeof existingTitle === 'string' ? { title: existingTitle } : {}),
-                            content: visibleContent,
-                            contentDirty: existing.payload.contentDirty !== false,
-                            rev: existingRev as number,
-                            writeId: existing.writeId,
-                            queueId: existing.id,
-                            dependsOnWriteId: existing.dependsOnWriteId,
-                            updatedAt: cached.updatedAt,
-                            persisted: Promise.resolve(true),
-                        });
+                        visibleContent = existingContent as string;
+                        visibleTitle = typeof existingTitle === 'string' ? existingTitle : undefined;
+                        if (existing.clientId === CLIENT_ID) {
+                            inheritedOutboxWrites.delete(id);
+                            dirty.set(id, {
+                                ...(typeof existingTitle === 'string' ? { title: existingTitle } : {}),
+                                content: visibleContent,
+                                contentDirty: existing.payload.contentDirty !== false,
+                                rev: existingRev as number,
+                                writeId: existing.writeId,
+                                queueId: existing.id,
+                                dependsOnWriteId: existing.dependsOnWriteId,
+                                updatedAt: cached.updatedAt,
+                                persisted: Promise.resolve(true),
+                            });
+                        }
+                        else {
+                            inheritedOutboxWrites.set(id, existing.writeId);
+                            foreignPending = true;
+                        }
+                        restoredPending = true;
                     }
                     else {
-                        inheritedOutboxWrites.set(id, existing.writeId);
-                        foreignPending = true;
-                    }
-                    restoredPending = true;
-                }
-                else {
-                    inheritedOutboxWrites.delete(id);
-                    const recoveredTitle = cached.pendingTitle;
-                    const recoveredContentDirty = cached.contentDirty !== false;
-                    visibleTitle = recoveredTitle;
-                    const queueId = outbox.some((item) => item.id === currentId)
-                        ? `patch-recovery:${CLIENT_ID}:${id}:${cached.writeId}`
-                        : currentId;
-                    const persisted = localDb.enqueueOutbox({
-                        id: queueId,
-                        clientId: CLIENT_ID,
-                        writeId: cached.writeId,
-                        noteId: id,
-                        payload: {
+                        inheritedOutboxWrites.delete(id);
+                        const recoveredTitle = cached.pendingTitle;
+                        const recoveredContentDirty = cached.contentDirty !== false;
+                        visibleTitle = recoveredTitle;
+                        const queueId = outbox.some((item) => item.id === currentId)
+                            ? `patch-recovery:${CLIENT_ID}:${id}:${cached.writeId}`
+                            : currentId;
+                        const persisted = localDb.enqueueOutbox({
+                            id: queueId,
+                            clientId: CLIENT_ID,
+                            writeId: cached.writeId,
+                            noteId: id,
+                            payload: {
+                                content: cached.content,
+                                contentDirty: recoveredContentDirty,
+                                rev: cached.rev,
+                                ...(recoveredTitle !== undefined ? { title: recoveredTitle } : {}),
+                            },
+                            attempts: 0,
+                            createdAt: cached.updatedAt,
+                        }).then(async () => {
+                            if (existing)
+                                await localDb.completeOutboxItem(existing.id, existing.writeId).catch(() => { });
+                            return true;
+                        }, () => false);
+                        dirty.set(id, {
+                            ...(recoveredTitle !== undefined ? { title: recoveredTitle } : {}),
                             content: cached.content,
                             contentDirty: recoveredContentDirty,
                             rev: cached.rev,
-                            ...(recoveredTitle !== undefined ? { title: recoveredTitle } : {}),
-                        },
-                        attempts: 0,
-                        createdAt: cached.updatedAt,
-                    }).then(async () => {
-                        if (existing)
-                            await localDb.completeOutboxItem(existing.id, existing.writeId).catch(() => { });
-                        return true;
-                    }, () => false);
-                    dirty.set(id, {
-                        ...(recoveredTitle !== undefined ? { title: recoveredTitle } : {}),
-                        content: cached.content,
-                        contentDirty: recoveredContentDirty,
-                        rev: cached.rev,
-                        writeId: cached.writeId,
-                        queueId,
-                        updatedAt: cached.updatedAt,
-                        persisted,
-                    });
-                    restoredPending = true;
-                    void persisted.then((durable) => {
-                        if (!durable) {
-                            useUi.getState().toast({
-                                title: t("notes.the_browser_could_not_save_your_offline_changes"),
-                                description: t("notes.keep_this_page_open_and_reconnect_as_soon_as_possible_closing_it_may_mak"),
-                                tone: 'danger',
-                                duration: 12_000,
-                            });
-                        }
-                    });
+                            writeId: cached.writeId,
+                            queueId,
+                            updatedAt: cached.updatedAt,
+                            persisted,
+                        });
+                        restoredPending = true;
+                        void persisted.then((durable) => {
+                            if (!durable) {
+                                useUi.getState().toast({
+                                    title: t("notes.the_browser_could_not_save_your_offline_changes"),
+                                    description: t("notes.keep_this_page_open_and_reconnect_as_soon_as_possible_closing_it_may_mak"),
+                                    tone: 'danger',
+                                    duration: 12_000,
+                                });
+                            }
+                        });
+                    }
+                    if (restoredPending) {
+                        const pendingIds = new Set(outbox.map((item) => item.noteId));
+                        for (const noteId of dirty.keys())
+                            pendingIds.add(noteId);
+                        set({ pendingCount: pendingIds.size });
+                    }
                 }
+                set((s) => ({
+                    notes: visibleTitle !== undefined && s.notes[id]?.title !== visibleTitle
+                        ? { ...s.notes, [id]: { ...s.notes[id]!, title: visibleTitle } }
+                        : s.notes,
+                    contents: { ...s.contents, [id]: visibleContent },
+                    ...(restoredPending
+                        ? { saveStatus: s.online ? 'dirty' as const : 'offline' as const }
+                        : {}),
+                }));
+                if (visibleTitle !== undefined)
+                    scheduleShellSave(get);
                 if (restoredPending) {
-                    const pendingIds = new Set(outbox.map((item) => item.noteId));
-                    for (const noteId of dirty.keys())
-                        pendingIds.add(noteId);
-                    set({ pendingCount: pendingIds.size });
+                    if (foreignPending && get().online)
+                        void replayOutbox(get, set);
+                    return;
                 }
-            }
-            set((s) => ({
-                notes: visibleTitle !== undefined && s.notes[id]?.title !== visibleTitle
-                    ? { ...s.notes, [id]: { ...s.notes[id]!, title: visibleTitle } }
-                    : s.notes,
-                contents: { ...s.contents, [id]: visibleContent },
-                ...(restoredPending
-                    ? { saveStatus: s.online ? 'dirty' as const : 'offline' as const }
-                    : {}),
-            }));
-            if (visibleTitle !== undefined)
-                scheduleShellSave(get);
-            useUi.getState().setWorkspaceNote(targetPane, id, activate);
-            if (restoredPending) {
-                if (foreignPending && get().online)
-                    void replayOutbox(get, set);
+                if (cached.rev === currentSummary.rev)
+                    validatedRevisions.set(id, currentSummary.rev);
+                else
+                    revalidateNote(id, currentSummary.rev, set, get);
                 return;
             }
-            if (cached.rev === currentSummary.rev)
-                validatedRevisions.set(id, currentSummary.rev);
-            else
-                revalidateNote(id, currentSummary.rev, set, get);
-            return;
-        }
-        try {
             const note = await requestNote(id);
             adoptNote(note, set, get);
             validatedRevisions.set(id, note.rev);
-            if (requestSequence === openSequences[targetPane] && get().notes[id]) {
-                useUi.getState().setWorkspaceNote(targetPane, id, activate);
-            }
         }
         catch (err) {
-            if (err === STALE_NOTE_REQUEST)
+            if (err === STALE_NOTE_REQUEST || requestSequence !== openSequences[targetPane] ||
+                (noteRequestEpochs.get(id) ?? 0) !== requestEpoch || !get().notes[id])
                 return;
+            const message = err instanceof ApiError && err.isOffline
+                ? t("notes.this_note_cannot_be_opened_offline")
+                : t("notes.failed_to_open_note");
+            set((s) => ({ noteLoadErrors: { ...s.noteLoadErrors, [id]: message } }));
             if (err instanceof ApiError && err.isOffline) {
                 useUi.getState().toast({ title: t("notes.this_note_cannot_be_opened_offline"), tone: 'warning' });
                 return;
@@ -562,6 +592,11 @@ export const useNotes = create<NotesState>((set, get) => ({
                 return;
             }
             toastError(err, t("notes.failed_to_open_note"));
+        }
+        finally {
+            window.clearTimeout(feedbackTimer);
+            stopWatchingNavigation();
+            selectTarget();
         }
     },
     editTitle(id, title) {
@@ -645,8 +680,10 @@ export const useNotes = create<NotesState>((set, get) => ({
         };
         const previousWorkspace = captureWorkspaceState();
         adoptNote(optimistic, set, get);
-        if (input?.open !== false)
+        if (input?.open !== false) {
             useUi.getState().setActiveNote(id);
+            useUi.getState().setMobilePane('editor');
+        }
         const request = api.notes.create({ id, title, content, folderId, ...(isStarred ? { isStarred: true } : {}) });
         pendingNoteCreates.set(id, request);
         try {

@@ -24,12 +24,12 @@ export function warmSettingsSection(section: SettingsSection): void {
 }
 
 export function scheduleSettingsWarmup(delay = 1200): () => void {
-  const queue = Object.keys(settingsLoaders) as SettingsSection[]
+  const queue = Object.keys(settingsLoaders) as Array<keyof typeof settingsLoaders>
   let timer: number
   const next = () => {
     const section = queue.shift()
     if (!section) return
-    warmSettingsSection(section)
+    void settingsLoaders[section]().catch(() => {})
     timer = window.setTimeout(next, 150)
   }
   timer = window.setTimeout(next, delay)

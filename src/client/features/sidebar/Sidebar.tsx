@@ -239,7 +239,7 @@ function ViewItem({ icon, label, view, count, active, onSelect, }: {
       {count != null && count > 0 && (<span className="shrink-0 text-[11px] tabular text-[var(--text-quaternary)]">{count}</span>)}
     </button>);
 }
-function FolderSection() {
+export function FolderSection() {
     const tree = useFolderTree();
     const folders = useNotes((s) => s.folders ?? []);
     const createFolder = useNotes((s) => s.createFolder);
@@ -558,7 +558,7 @@ function FolderRow({ node, siblings, index, parentNode, parentSiblings, onCreate
                 }
                 e.stopPropagation();
             }} className="min-w-0 flex-1 rounded-[var(--r-xs)] border border-[var(--accent)] bg-[var(--bg-surface)] px-1 py-px text-[12.5px] outline-none"/>) : (<Tooltip label={folderPathLabel(folders, node.id)} side="right">
-            <button type="button" aria-current={active ? 'page' : undefined} onClick={() => openFolderView(folders, node.id)} onDoubleClick={() => onStartRename(node.id)} className="min-w-0 flex-1 truncate py-1 text-left text-[12.5px] font-medium">
+            <button data-navigation-item type="button" aria-current={active ? 'page' : undefined} onClick={() => openFolderView(folders, node.id)} onDoubleClick={() => onStartRename(node.id)} className="min-w-0 flex-1 truncate py-1 text-left text-[12.5px] font-medium">
               {node.name}
             </button>
           </Tooltip>)}
@@ -598,7 +598,7 @@ function FolderMotionIcon({ open, drawing }: {
       <FolderOpen size={14} className="folder-motion-icon__open"/>
     </span>);
 }
-function TagSection() {
+export function TagSection() {
     const tags = useNotes((s) => s.tags);
     const view = useUi((s) => s.view);
     const activeTag = useUi((s) => s.tag);
@@ -724,7 +724,7 @@ function TagRow({ tag, active, renaming, onOpen, onStartRename, onFinishRename, 
                 onCancelRename();
             }
             event.stopPropagation();
-        }} className="min-w-0 flex-1 rounded-[var(--r-xs)] border border-[var(--accent)] bg-[var(--bg-surface)] px-1 py-px text-[12.5px] outline-none"/>) : (<button type="button" aria-current={active ? 'page' : undefined} onClick={onOpen} onDoubleClick={onStartRename} className="min-w-0 flex-1 truncate py-1 text-left text-[12.5px] font-medium">
+        }} className="min-w-0 flex-1 rounded-[var(--r-xs)] border border-[var(--accent)] bg-[var(--bg-surface)] px-1 py-px text-[12.5px] outline-none"/>) : (<button data-navigation-item type="button" aria-current={active ? 'page' : undefined} onClick={onOpen} onDoubleClick={onStartRename} className="min-w-0 flex-1 truncate py-1 text-left text-[12.5px] font-medium">
           {tag.name}
         </button>)}
       {!renaming && (<>

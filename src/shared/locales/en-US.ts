@@ -32,6 +32,10 @@ export const EN_US_MESSAGES = {
     "passkey.limit": "You can add up to 10 passkeys. Delete one first.",
     "passkey.unavailable": "Passkeys are not enabled on this instance. Sign in with your password.",
 
+    "mobile.account": "Me",
+    "mobile.view": "View",
+    "mobile.menu": "Menu",
+    "mobile.back_to_account": "Back to Me",
     "app.boot_label": "Preparing your notebook…",
     "app.document_title": "Inkstone",
     "app.meta_description": "A private, self-hosted Markdown notebook built on Cloudflare.",
@@ -960,7 +964,7 @@ export const EN_US_MESSAGES = {
     "share.visits": " visits",
     "shell.add_to_remove_from_favorites": "Add to / remove from favorites",
     "shell.collapse_expand_list": "Collapse/expand list",
-    "shell.cycle_editor_split_preview": "Cycle editor / split / preview",
+    "shell.cycle_editor_split_preview": "Cycle live preview / split view / reading mode",
     "shell.global": "Global",
     "shell.keyboard_shortcuts": "Keyboard shortcuts",
     "shell.mobile_navigation": "Mobile navigation",
@@ -1041,7 +1045,10 @@ export const EN_US_MESSAGES = {
     "time.this_week": "This week",
     "time.today": "Today",
     "time.yesterday": "Yesterday",
-    "workspace.a_snapshot_is_saved_every_few_minutes_or_after_larger_edits": "A snapshot is saved every few minutes or after larger edits",
+      "workspace.reading_mode": "Reading mode",
+  "workspace.live_preview": "Live preview",
+  "workspace.live_preview_hint": "Click to edit; move the cursor away to render. Ctrl / ⌘ + click to open links",
+  "workspace.a_snapshot_is_saved_every_few_minutes_or_after_larger_edits": "A snapshot is saved every few minutes or after larger edits",
     "workspace.autosave_for_value0": "Autosave for “{value0}”",
     "workspace.back_to_notes": "Back to notes",
     "workspace.block_id": "Block ID",
@@ -1118,11 +1125,11 @@ aliases:
 > - The title at the top of a note is independently editable and does not have to match the first body line.
 > - MCP is entirely optional and requires account authorization before it can read notes.
 
-Use the left side to organize notes, the center to edit plain Markdown, and the right side for live preview. There is no proprietary document format: every \`.md\` file in a backup opens in any text editor.
+Organize notes on the left. Choose live preview to edit content in place, split view for source and preview side by side on desktop and stacked on mobile, or reading mode to browse the rendered document. There is no proprietary document format: every \`.md\` file in a backup opens in any text editor.
 
 ## Try these now
 
-- [ ] Click this checkbox and watch the source update on the left
+- [ ] Click this checkbox and see its state saved
   - [ ] Nested tasks update their exact source line too
 - [ ] Select text and press \`Ctrl + B\` to make it bold
 - [ ] Press \`Ctrl + K\` to open the command palette

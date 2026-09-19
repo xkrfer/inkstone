@@ -136,13 +136,23 @@ export function noteIndexQueueStatement(
 ): D1PreparedStatement {
   const guard = kind === 'embed'
     ? ` WHERE EXISTS (SELECT 1 FROM app_meta WHERE key = ?5 AND value = '1')`
-    : ''
-  return db.prepare(
+    : ` WHERE ${aiDeleteNeededSql('?1', '?2')}`
+  const statement = db.prepare(
     `INSERT OR REPLACE INTO ai_index_queue (user_id, note_id, kind, created_at)
      SELECT ?1, ?2, ?3,
        MAX(?4, COALESCE((SELECT created_at + 1 FROM ai_index_queue
          WHERE user_id = ?1 AND note_id = ?2), ?4))${guard}`,
-  ).bind(userId, noteId, kind, now, aiSearchPrefKey(userId))
+  )
+  return kind === 'embed'
+    ? statement.bind(userId, noteId, kind, now, aiSearchPrefKey(userId))
+    : statement.bind(userId, noteId, kind, now)
+}
+
+export function aiDeleteNeededSql(userId: string, noteId: string): string {
+  return `(EXISTS (SELECT 1 FROM ai_note_embeddings
+    WHERE user_id = ${userId} AND note_id = ${noteId})
+    OR EXISTS (SELECT 1 FROM ai_index_queue
+      WHERE user_id = ${userId} AND note_id = ${noteId}))`
 }
 
 export async function enqueueAllNotesForIndex(

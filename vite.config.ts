@@ -75,6 +75,9 @@ const config: UserConfigFnPromise = async ({ mode, command }) => ({
           (await import('@cloudflare/vite-plugin')).cloudflare({
             configPath: mode === 'kv' ? './wrangler.kv.toml' : undefined,
             persistState: !ephemeralDevState,
+            ...(command === 'serve' && mode !== 'ai'
+              ? { config: (worker) => { delete worker.ai } }
+              : {}),
           }),
         ]),
   ],

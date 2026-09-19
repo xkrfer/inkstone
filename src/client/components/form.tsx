@@ -370,7 +370,7 @@ export function SettingRow({
   return (
     <div
       className={cn(
-        'flex flex-col items-stretch justify-between gap-2 py-3 md:flex-row md:items-center md:gap-6',
+        'setting-row flex flex-col items-stretch justify-between gap-2 py-3 md:flex-row md:items-center md:gap-6',
         'border-b border-[var(--border-subtle)] last:border-b-0',
         className,
       )}

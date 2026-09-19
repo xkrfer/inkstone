@@ -14,6 +14,8 @@ interface IndexableNote {
 
 const FTS_DRAIN_CURSOR_META_KEY = 'fts-index-drain-user-v1'
 
+export const FTS_NOTE_MATCH_SQL = `notes_fts MATCH ('note_id : "' || replace(?1, '"', '""') || '"')`
+
 
 export async function rebuildFtsIndex(db: D1Database, userId: string): Promise<number> {
   const boundary = await db
@@ -47,7 +49,7 @@ export async function rebuildFtsIndex(db: D1Database, userId: string): Promise<n
       statements.push(
         db
           .prepare(
-            `DELETE FROM notes_fts WHERE note_id = ?1 AND user_id = ?2
+            `DELETE FROM notes_fts WHERE ${FTS_NOTE_MATCH_SQL} AND note_id = ?1 AND user_id = ?2
               AND ${shiftPlaceholders(guard, 2)}`,
           )
           .bind(row.id, userId, row.id, userId, row.rev, row.content_hash, row.title, row.updated_at),
@@ -114,7 +116,7 @@ function buildFtsQueueItemStatements(
       WHERE user_id = ?3 AND note_id = ?4 AND kind = ?5 AND created_at = ?6)`
     return [
       db.prepare(
-        `DELETE FROM notes_fts WHERE note_id = ?1 AND user_id = ?2 AND ${queueGuard}`,
+        `DELETE FROM notes_fts WHERE ${FTS_NOTE_MATCH_SQL} AND note_id = ?1 AND user_id = ?2 AND ${queueGuard}`,
       ).bind(noteId, userId, userId, noteId, kind, queueVersion),
       db.prepare(
         `DELETE FROM fts_index_queue
@@ -132,7 +134,7 @@ function buildFtsQueueItemStatements(
   const processGuardValues = [...guardValues, userId, noteId, kind, queueVersion] as const
   return [
     db
-      .prepare(`DELETE FROM notes_fts WHERE note_id = ?1 AND user_id = ?2 AND ${shiftPlaceholders(processGuard, 2)}`)
+      .prepare(`DELETE FROM notes_fts WHERE ${FTS_NOTE_MATCH_SQL} AND note_id = ?1 AND user_id = ?2 AND ${shiftPlaceholders(processGuard, 2)}`)
       .bind(noteId, userId, ...processGuardValues),
     db
       .prepare(

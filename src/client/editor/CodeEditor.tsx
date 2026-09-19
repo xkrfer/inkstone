@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Annotation, Compartment, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, drawSelection, dropCursor, keymap, lineNumbers, placeholder as placeholderExt, rectangularSelection, } from '@codemirror/view';
 import { foldGutter, indentOnInput, indentUnit, } from '@codemirror/language';
@@ -13,11 +13,16 @@ import { focusModePlugin, markdownDecorations, setFocusMode, typewriterPlugin } 
 import { codeFenceSource, tagSource, wikiLinkSource, type CompletionSources } from './completion';
 import { pasteExtension, type PasteHandlers } from './paste';
 import { completeCodeFenceOnEnter, setHeading, smartEnter, tableTab, toggleBold, toggleBulletList, toggleHighlight, toggleInlineCode, toggleItalic, toggleOrderedList, toggleQuote, toggleStrikethrough, toggleTaskDone, toggleTaskList, } from './commands';
+import { livePreview } from './live-preview';
+import type { Heading } from '../lib/markdown/renderer';
 import { t } from "../lib/i18n";
 
 const externalValueUpdate = Annotation.define<boolean>();
 export interface CodeEditorProps {
     value: string;
+    live?: boolean;
+    noteTitle?: string;
+    onHeadings?: (headings: Heading[]) => void;
     onChange: (value: string) => void;
     settings: EditorSettings;
     sources: CompletionSources;
@@ -28,16 +33,26 @@ export interface CodeEditorProps {
     placeholder?: string;
     className?: string;
 }
-export function CodeEditor({ value, onChange, settings, sources, handlers, onReady, onScroll, onCursorLine, placeholder = t("editor.start_writing"), className, }: CodeEditorProps) {
+export function DeferredCodeEditor({ visible, ...props }: CodeEditorProps & { visible: boolean }) {
+    const [initialized, setInitialized] = useState(visible);
+    useEffect(() => {
+        if (visible) setInitialized(true);
+    }, [visible]);
+    // Preserve undo history across mode changes once editing has started.
+    return visible || initialized ? <CodeEditor {...props}/> : null;
+}
+export function CodeEditor({ value, live = false, noteTitle = '', onHeadings, onChange, settings, sources, handlers, onReady, onScroll, onCursorLine, placeholder = t("editor.start_writing"), className, }: CodeEditorProps) {
     const hostRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
 
-    const cbRef = useRef({ onChange, onScroll, onCursorLine, sources, handlers });
-    cbRef.current = { onChange, onScroll, onCursorLine, sources, handlers };
+    const cbRef = useRef({ onChange, onScroll, onCursorLine, sources, handlers, onHeadings, noteTitle });
+    cbRef.current = { onChange, onScroll, onCursorLine, sources, handlers, onHeadings, noteTitle };
 
+    const liveCompartment = useRef(new Compartment());
     const lineNumbersCompartment = useRef(new Compartment());
     const tabSizeCompartment = useRef(new Compartment());
     const placeholderCompartment = useRef(new Compartment());
+    const configuredDisplay = useRef({ live, lineNumbers: settings.lineNumbers });
 
     useEffect(() => {
         const host = hostRef.current;
@@ -76,6 +91,7 @@ export function CodeEditor({ value, onChange, settings, sources, handlers, onRea
             }),
             editorTheme(),
             markdownDecorations,
+            liveCompartment.current.of(live ? livePreview((headings) => cbRef.current.onHeadings?.(headings), () => cbRef.current.noteTitle) : []),
             focusModePlugin,
             typewriterPlugin,
             pasteExtension(cbRef.current.handlers),
@@ -104,7 +120,7 @@ export function CodeEditor({ value, onChange, settings, sources, handlers, onRea
             keymap.of(defaultKeymap),
             keymap.of([indentWithTab]),
             lineNumbersCompartment.current.of(
-                settings.lineNumbers
+                settings.lineNumbers && !live
                     ? [lineNumbers(), foldGutter()]
                     : [],
             ),
@@ -141,14 +157,18 @@ export function CodeEditor({ value, onChange, settings, sources, handlers, onRea
     useEffect(() => {
         const view = viewRef.current;
         if (!view) return;
+        if (configuredDisplay.current.live === live && configuredDisplay.current.lineNumbers === settings.lineNumbers)
+            return;
+        configuredDisplay.current = { live, lineNumbers: settings.lineNumbers };
         view.dispatch({
             effects: lineNumbersCompartment.current.reconfigure(
-                settings.lineNumbers
+                settings.lineNumbers && !live
                     ? [lineNumbers(), foldGutter()]
                     : [],
             ),
         });
-    }, [settings.lineNumbers]);
+        view.dispatch({ effects: liveCompartment.current.reconfigure(live ? livePreview((headings) => cbRef.current.onHeadings?.(headings), () => cbRef.current.noteTitle) : []) });
+    }, [settings.lineNumbers, live]);
 
     useEffect(() => {
         const view = viewRef.current;
@@ -194,5 +214,5 @@ export function CodeEditor({ value, onChange, settings, sources, handlers, onRea
     useEffect(() => {
         viewRef.current?.dispatch({ effects: setFocusMode.of(settings.focusMode) });
     }, [settings.focusMode]);
-    return (<div ref={hostRef} className={cn('ink-editor', className)} data-family={settings.fontFamily} data-focus-mode={settings.focusMode} data-typewriter={settings.typewriter}/>);
+    return (<div ref={hostRef} className={cn('ink-editor', className)} data-live={live} data-family={settings.fontFamily} data-focus-mode={settings.focusMode} data-typewriter={settings.typewriter}/>);
 }

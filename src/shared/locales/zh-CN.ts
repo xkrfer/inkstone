@@ -33,6 +33,10 @@ export const ZH_CN_MESSAGES = {
     "passkey.limit": "最多可添加 10 个通行密钥，请先删除一个。",
     "passkey.unavailable": "此实例尚未启用通行密钥，请使用密码登录。",
 
+    "mobile.account": "我的",
+    "mobile.view": "查看",
+    "mobile.menu": "菜单",
+    "mobile.back_to_account": "返回我的",
     "app.boot_label": "正在准备笔记本…",
     "app.document_title": "Inkstone",
     "app.meta_description": "运行在 Cloudflare 上的私有、自托管 Markdown 笔记本。",
@@ -961,7 +965,7 @@ export const ZH_CN_MESSAGES = {
     "share.visits": "次访问",
     "shell.add_to_remove_from_favorites": "收藏 / 取消收藏",
     "shell.collapse_expand_list": "折叠 / 展开列表",
-    "shell.cycle_editor_split_preview": "切换编辑 / 分栏 / 预览",
+    "shell.cycle_editor_split_preview": "切换即时渲染 / 分栏 / 阅读",
     "shell.global": "全局",
     "shell.keyboard_shortcuts": "快捷键面板",
     "shell.mobile_navigation": "手机端导航",
@@ -1042,7 +1046,10 @@ export const ZH_CN_MESSAGES = {
     "time.this_week": "本周",
     "time.today": "今天",
     "time.yesterday": "昨天",
-    "workspace.a_snapshot_is_saved_every_few_minutes_or_after_larger_edits": "每隔几分钟或改动较大时，会自动留一份存档",
+      "workspace.reading_mode": "阅读模式",
+  "workspace.live_preview": "即时渲染",
+  "workspace.live_preview_hint": "点击内容编辑，移开光标查看排版；Ctrl / ⌘ + 点击打开链接",
+  "workspace.a_snapshot_is_saved_every_few_minutes_or_after_larger_edits": "每隔几分钟或改动较大时，会自动留一份存档",
     "workspace.autosave_for_value0": "「{value0}」的自动存档",
     "workspace.back_to_notes": "返回笔记列表",
     "workspace.block_id": "块 ID",
@@ -1119,11 +1126,11 @@ aliases:
 > - 笔记顶部标题可以独立编辑，不必与正文第一行相同。
 > - MCP 完全可选，并且必须经过账号授权才能读取笔记。
 
-左侧管理笔记，中间编辑纯文本 Markdown，右侧实时预览。没有专有文档格式，备份里的 \`.md\` 文件可以被任何文本编辑器打开。
+左侧管理笔记，正文支持即时渲染、分栏和阅读三种方式：即时渲染中点击内容即可编辑，分栏在电脑上左右排列、手机上上下排列，阅读模式专注浏览正文。没有专有文档格式，备份里的 \`.md\` 文件可以被任何文本编辑器打开。
 
 ## 现在就试试
 
-- [ ] 点击这个复选框，确认它会同步改写左侧源码
+- [ ] 点击这个复选框，确认勾选状态会保存
   - [ ] 子任务也能精确勾选，不会改错上一行
 - [ ] 选中文字，按 \`Ctrl + B\` 加粗
 - [ ] 按 \`Ctrl + K\` 打开命令面板

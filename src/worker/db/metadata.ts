@@ -2,7 +2,8 @@ export async function setMeta(db: D1Database, key: string, value: string): Promi
   await db
     .prepare(
       `INSERT INTO app_meta (key, value) VALUES (?1, ?2)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value
+       WHERE app_meta.value IS NOT excluded.value`,
     )
     .bind(key, value)
     .run()

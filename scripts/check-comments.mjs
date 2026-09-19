@@ -3,6 +3,22 @@ import path from 'node:path'
 import ts from 'typescript'
 
 const allowed = new Map([
+  ["vite.config.ts", [
+    "// Keep optional preview renderers and their language modules behind dynamic-import boundaries.",
+  ]],
+  ["src/client/editor/live-preview.ts", [
+    "// Preserve the source line under the pointer, including rows inside tables/lists.",
+    "/** Decorations change presentation only; all editing, undo, search and saving use Markdown. */",
+    "// Keep typing synchronous and cheap. Reparse after a short idle window; never",
+    "// display stale HTML for a block whose source was touched in the meantime.",
+  ]],
+  ["src/client/editor/codeLanguages.ts", [
+    "// Highlighting removed: no code languages are loaded.",
+    "// Kept as empty array so the editor behaves as plain Markdown without syntax colors.",
+  ]],
+  ["src/client/editor/CodeEditor.tsx", [
+    "// Preserve undo history across mode changes once editing has started.",
+  ]],
   ["scripts/check-i18n.mjs", [
     "// The OAuth consent page is a self-contained HTML document with its own",
     "// language switch (cookie-based); it does not use the React i18n layer.",
@@ -15,9 +31,11 @@ const allowed = new Map([
     "// enforces the same minimum); short codes are trivially brute-forced.",
   ]],
   ["src/client/lib/i18n.ts", [
-    "/** Provides typed runtime localization with complete English and Simplified Chinese resources. */",
+    "// Preload the other locale in background for instant switching, but don't block init",
+    "/** Provides typed runtime localization with on-demand locale loading. */",
   ]],
   ["src/client/lib/markdown/renderer.ts", [
+    "/** Parse once with the full document environment so reference links retain their targets. */",
     "/** Builds the sanitized Markdown rendering pipeline and its Inkstone-specific syntax extensions. */",
   ]],
   ["src/client/lib/sync.ts", [
@@ -26,6 +44,7 @@ const allowed = new Map([
     "// through updateConfig instead of rebuilding the whole engine.",
   ]],
   ["src/client/store/notes.ts", [
+    "// Keep the current document for fast reads; only slow reads need a loading page.",
     "/** Coordinates the note cache, offline write-ahead log, optimistic updates, and server synchronization. */",
   ]],
   ["src/client/store/pwa.ts", [
@@ -39,11 +58,17 @@ const allowed = new Map([
   ]],
   ["src/shared/markdown-utils.ts", [
     "/** Provides pure Markdown analysis shared by the browser and Worker runtimes. */",
+    "// md-example fences are rendered as live markdown by the client renderer,",
+    "// so references inside them count even though stripCodeRegions discards",
+    "// them as ordinary code regions.",
+    "// A closing fence may only be followed by spaces or tabs.",
   ]],
   ["src/worker/backup/snapshot.ts", [
     "/** Produces restorable JSON, readable Markdown, and attachment files for every backup target. */",
   ]],
   ["src/worker/db/schema.ts", [
+    "// Keep the existing indexed text and rowids. The batch either replaces the",
+    "// complete index or rolls back, including when an old installation retries.",
     "/** Defines the idempotent final D1 schema initialized by every Worker isolate. */",
     "// Explicit whitelist (not a regex over SCHEMA_STATEMENTS) so later",
     "// additions like mcp_api_keys can never be picked up accidentally.",

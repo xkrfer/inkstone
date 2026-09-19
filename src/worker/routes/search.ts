@@ -206,7 +206,7 @@ async function ftsSearch(
   const match = buildFtsQuery(q.terms)
   if (!match) return []
 
-  const binds: unknown[] = [match, userId]
+  const binds: unknown[] = [`{title body} : (${match})`, userId]
   let where = `notes_fts MATCH ?1 AND notes_fts.user_id = ?2
     AND n.user_id = ?2 AND n.deleted_at IS NULL`
   applyFilters(q, binds, (clause) => (where += clause))
@@ -433,8 +433,13 @@ searchRoutes.get('/graph', requireAuth, async (c) => {
     out_degree: number
   }
   const degreeSelect = `
-    (SELECT COUNT(*) FROM links ld WHERE ld.user_id = ? AND ld.target_note_id IS NOT NULL
-      AND (ld.source_note_id = n.id OR ld.target_note_id = n.id)) AS degree,
+    (SELECT COUNT(*) FROM (
+      SELECT target_key FROM links ld WHERE ld.source_note_id = n.id
+        AND ld.user_id = ? AND ld.target_note_id IS NOT NULL
+      UNION ALL
+      SELECT target_key FROM links ld WHERE ld.target_note_id = n.id
+        AND ld.user_id = n.user_id AND ld.source_note_id != n.id
+    )) AS degree,
     (SELECT COUNT(*) FROM links li WHERE li.user_id = ? AND li.target_note_id = n.id) AS in_degree,
     (SELECT COUNT(*) FROM links lo WHERE lo.user_id = ? AND lo.source_note_id = n.id
       AND lo.target_note_id IS NOT NULL) AS out_degree`

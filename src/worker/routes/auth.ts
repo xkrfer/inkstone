@@ -115,7 +115,7 @@ export function decideRegistration(input: {
 }
 
 async function gate(env: Env): Promise<RegistrationDecision> {
-  const countRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM users`).first<{ n: number }>()
+  const countRow = await env.DB.prepare(`SELECT 1 AS n FROM users LIMIT 1`).first<{ n: number }>()
   return decideRegistration({
     userCount: countRow?.n ?? 0,
     registrationOpen: await getAllowRegistration(env.DB),

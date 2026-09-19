@@ -18,19 +18,13 @@ export const tagsRoutes = new Hono<AppBindings>()
 tagsRoutes.use('*', requireAuth)
 
 const TAG_SELECT = `t.id, t.name, t.color, t.created_at,
-  COALESCE(nc.count, 0) AS note_count`
-
-const TAG_COUNT_JOIN = `LEFT JOIN (
-  SELECT nt.tag_id, COUNT(*) AS count
-    FROM note_tags nt JOIN notes n ON n.id = nt.note_id
-   WHERE n.user_id = ?1 AND n.deleted_at IS NULL AND n.is_archived = 0
-   GROUP BY nt.tag_id
-) nc ON nc.tag_id = t.id`
+  (SELECT COUNT(*) FROM note_tags nt JOIN notes n ON n.id = nt.note_id
+    WHERE nt.tag_id = t.id AND n.user_id = t.user_id
+      AND n.deleted_at IS NULL AND n.is_archived = 0) AS note_count`
 
 tagsRoutes.get('/', async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT ${TAG_SELECT} FROM tags t
-      ${TAG_COUNT_JOIN}
      WHERE t.user_id = ?1 ORDER BY t.name COLLATE NOCASE ASC`,
   )
     .bind(c.get('userId'))
@@ -232,7 +226,6 @@ tagsRoutes.patch('/:id', async (c) => {
   }
   const row = await c.env.DB.prepare(
     `SELECT ${TAG_SELECT} FROM tags t
-      ${TAG_COUNT_JOIN}
      WHERE t.id = ?2 AND t.user_id = ?1`,
   )
     .bind(userId, id)
@@ -288,7 +281,6 @@ async function loadTag(
 ): Promise<ReturnType<typeof toTag> | null> {
   const row = await db.prepare(
     `SELECT ${TAG_SELECT} FROM tags t
-      ${TAG_COUNT_JOIN}
      WHERE t.id = ?2 AND t.user_id = ?1`,
   ).bind(userId, id).first<TagRow>()
   return row ? toTag(row) : null
@@ -387,9 +379,8 @@ export async function rewriteTagInNotes(
       const trim = env.DB.prepare(
         `DELETE FROM note_versions WHERE note_id = ?1
            AND ${shiftSqlPlaceholders(mutationGuard, 1)}
-           AND id NOT IN (
-             SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC LIMIT ?8
-           )`,
+           AND id IN (
+             SELECT id FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?8)`,
       ).bind(note.id, ...mutationValues, LIMITS.versionsPerNote)
       const statements: D1PreparedStatement[] = [update, snapshot, trim]
       if (note.deleted_at === null) {

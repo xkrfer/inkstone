@@ -57,7 +57,7 @@ export function EditorToolbar({ runCommand, view, onPickImage, mobile = false, }
         { id: 'tabs', label: t("common.tabs"), onSelect: run(insertTabs) },
         { id: 'front-matter', label: 'Front Matter', onSelect: run(insertFrontMatter), separatorBefore: true },
     ];
-    return (<div className={cn('flex shrink-0 items-center overflow-x-auto border-b border-[var(--border-subtle)] px-2 no-scrollbar', mobile ? 'h-11 gap-1' : 'h-9 gap-0.5')}>
+    return (<div className={cn('editor-toolbar flex shrink-0 items-center overflow-x-auto border-b border-[var(--border-subtle)] px-2 no-scrollbar', mobile ? 'h-11 gap-1' : 'h-9 gap-0.5')}>
       <Tooltip label={t("workspace.title_748d7d")}>
         <button ref={headingRef} type="button" onClick={() => toggleMenu('heading')} aria-label={t("workspace.title_level")} aria-haspopup="menu" aria-expanded={openMenu === 'heading'} className={cn('inline-flex items-center gap-0.5 rounded-[var(--r-md)] px-1.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]', mobile ? 'h-9' : 'h-7')}>
           <Heading size={14}/>

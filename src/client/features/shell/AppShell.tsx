@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
-import { Eye, FileText, ListTree, PanelLeft, PencilLine } from 'lucide-react';
+import { Eye, FileText, PanelLeft, PencilLine, UserRound } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { registerAll } from '../../lib/hotkeys';
 import { useBreakpoint } from '../../lib/hooks';
@@ -15,6 +15,7 @@ import { useUpdate } from '../../store/update';
 import { Sidebar } from '../sidebar/Sidebar';
 import { NoteList } from '../list/NoteList';
 import { SearchButton } from './SearchButton';
+import { MobileAccount } from './MobileAccount';
 import { Resizer, SplitResizer } from './Resizer';
 import { t } from "../../lib/i18n";
 import { SettingsPanel } from '../settings/SettingsPanel';
@@ -133,36 +134,32 @@ function MobileShell() {
     const activeNoteId = useUi((s) => s.activeNoteId);
     const notePane = pane === 'editor' || pane === 'preview';
     useEffect(() => {
-        if (!activeNoteId && notePane)
+        if (pane === 'nav' || (!activeNoteId && notePane))
             setPane('list');
-    }, [activeNoteId, notePane, setPane]);
+    }, [activeNoteId, notePane, pane, setPane]);
     const tabs = [
-        { id: 'nav' as const, icon: <ListTree size={19}/>, label: t("common.navigation") },
         { id: 'list' as const, icon: <FileText size={19}/>, label: t("common.note") },
-        ...(activeNoteId ? [
-            { id: 'editor' as const, icon: <PencilLine size={19}/>, label: t("common.edit") },
-            { id: 'preview' as const, icon: <Eye size={19}/>, label: t("common.preview") },
-        ] : []),
+        { id: 'editor' as const, icon: <PencilLine size={19}/>, label: t("common.edit") },
+        { id: 'preview' as const, icon: <Eye size={19}/>, label: t('mobile.view') },
+        { id: 'account' as const, icon: <UserRound size={19}/>, label: t('mobile.account') },
     ];
     return (<div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-[var(--bg-base)] pt-[env(safe-area-inset-top)]">
       <div className="relative min-h-0 flex-1">
-        <div aria-hidden={pane !== 'nav'} inert={pane !== 'nav'} data-active={pane === 'nav' || undefined} className="mobile-pane-layer absolute inset-0">
-          <Sidebar onCollapse={() => setPane('list')}/>
+        <div aria-hidden={pane !== 'account'} inert={pane !== 'account'} data-active={pane === 'account' || undefined} className="mobile-pane-layer absolute inset-0">
+          {pane === 'account' && <MobileAccount />}
         </div>
         <div aria-hidden={pane !== 'list'} inert={pane !== 'list'} data-active={pane === 'list' || undefined} className="mobile-pane-layer absolute inset-0">
           <NoteList />
         </div>
         <div aria-hidden={!notePane} inert={!notePane} data-active={notePane || undefined} data-from="right" className="mobile-pane-layer absolute inset-0">
-          {notePane && activeNoteId && (<Suspense fallback={<WorkspaceFallback />}><Workspace mobileLayout={pane === 'preview' ? 'preview' : 'edit'} onMobileBack={() => setPane('list')}/></Suspense>) }
+          {notePane && activeNoteId && (<Suspense fallback={<WorkspaceFallback />}><Workspace onMobileBack={() => setPane('list')}/></Suspense>) }
         </div>
       </div>
 
-      <nav aria-label={t("shell.mobile_navigation")} className="flex h-[calc(56px+env(safe-area-inset-bottom))] shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-sunken)] pb-[env(safe-area-inset-bottom)]">
-        {tabs.map((tab) => (<button key={tab.id} type="button" aria-current={pane === tab.id ? 'page' : undefined} onClick={() => setPane(tab.id)} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] transition-colors active:bg-[var(--bg-active)]', pane === tab.id ? 'text-[var(--accent)]' : 'text-[var(--text-quaternary)]')}>
-            <span className={cn('mobile-tab-icon', pane === tab.id && 'is-active')}>{tab.icon}</span>
-            {tab.label}
+      <nav aria-label={t("shell.mobile_navigation")} className="mobile-bottom-nav flex h-[calc(64px+env(safe-area-inset-bottom))] shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] pb-[env(safe-area-inset-bottom)]">
+        {tabs.map((tab) => (<button key={tab.id} type="button" disabled={!activeNoteId && (tab.id === 'editor' || tab.id === 'preview')} aria-current={pane === tab.id ? 'page' : undefined} onClick={() => setPane(tab.id)} className={cn('flex min-w-0 flex-1 items-center justify-center text-[12px] transition-colors disabled:opacity-40', pane === tab.id ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]')}>
+            <span className="mobile-tab-content">{tab.icon}<span>{tab.label}</span></span>
           </button>))}
-        <SearchButton variant="mobile" />
       </nav>
 
       <OverlayHost />
@@ -265,7 +262,7 @@ function useGlobalHotkeys(): void {
                 group: () => t("common.interface"),
                 allowInInput: true,
                 handler: () => {
-                    const order = ['edit', 'split', 'preview'] as const;
+                    const order = ['live', 'split', 'preview'] as const;
                     const uiState = ui();
                     if (uiState.workspaceSecondaryNoteId) {
                         const pane = uiState.activeWorkspacePane;

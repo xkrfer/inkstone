@@ -15,7 +15,7 @@ import { scheduleSettingsWarmup, settingsLoaders, warmSettingsSection, type Sett
 import { t } from "../../lib/i18n";
 type Section = SettingsSection;
 const AppearancePage = memo(AppearanceSettings);
-const SECTIONS: {
+export const SECTIONS: {
     id: Section;
     label: () => string;
     icon: React.ReactNode;
@@ -107,7 +107,7 @@ export function SettingsPanel({ onClose }: {
     </div>, document.body);
 }
 
-const SettingsPage = memo(function SettingsPage({ section }: { section: Exclude<Section, 'appearance'> }) {
+export const SettingsPage = memo(function SettingsPage({ section }: { section: Exclude<Section, 'appearance'> }) {
     const [attempt, setAttempt] = useState(0);
     const Page = useMemo(() => lazy(settingsLoaders[section]), [section, attempt]);
     return (<ErrorBoundary key={attempt} fallback={<div role="alert" className="space-y-3 py-4 text-[12.5px] text-[var(--text-secondary)]">

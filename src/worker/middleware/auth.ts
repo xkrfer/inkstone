@@ -45,6 +45,7 @@ export function rowToUser(row: UserRow): Variables['user'] {
 interface SessionUserRow extends UserRow {
   session_id: string
   expires_at: number
+  last_seen_at: number
 }
 
 export const loadSession = createMiddleware<AppBindings>(async (c, next) => {
@@ -59,7 +60,7 @@ export const loadSession = createMiddleware<AppBindings>(async (c, next) => {
     if (!isSessionToken(token) || seenTokens.has(token)) continue
     seenTokens.add(token)
     const row = await c.env.DB.prepare(
-      `SELECT ${USER_COLUMNS_ALIASED}, s.id AS session_id, s.expires_at
+      `SELECT ${USER_COLUMNS_ALIASED}, u.last_seen_at, s.id AS session_id, s.expires_at
          FROM sessions s LEFT JOIN users u ON u.id = s.user_id
         WHERE s.id = ?1 AND s.expires_at > ?2`,
     )
@@ -86,7 +87,7 @@ export const loadSession = createMiddleware<AppBindings>(async (c, next) => {
           clearLegacySessionCookie(c)
         }
         const now = Date.now()
-        c.executionCtx?.waitUntil(
+        if (row.last_seen_at < now - 5 * 60 * 1000) c.executionCtx?.waitUntil(
           c.env.DB.prepare(`UPDATE users SET last_seen_at = ?1 WHERE id = ?2 AND last_seen_at < ?3`)
             .bind(now, row.id, now - 5 * 60 * 1000)
             .run()

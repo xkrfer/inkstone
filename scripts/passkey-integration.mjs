@@ -21,6 +21,45 @@ async function expected(client, method, route, body, status = 200) {
   return result.body
 }
 
+for (const lineage of ['fork', 'upstream']) {
+  test(`schema migration 12 from ${lineage} upgrades without losing data`, async (t) => {
+    const mf = await createRuntime()
+    t.after(() => mf.dispose())
+    const db = await mf.getD1Database('DB')
+    const built = await build({ stdin: { contents: "export {SCHEMA_STATEMENTS} from './src/worker/db/schema.ts'", resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' })
+    const { SCHEMA_STATEMENTS } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'))
+    const statements = lineage === 'fork'
+      ? SCHEMA_STATEMENTS.filter((s) => !/idx_notes_user_id|idx_tags_name_nocase|idx_versions_user/.test(s))
+        .map((s) => s.replace('created_at DESC, id DESC', 'created_at DESC').replace('started_at DESC, id DESC', 'started_at DESC'))
+      : SCHEMA_STATEMENTS.filter((s) => !/passkey|webauthn/.test(s))
+    await db.batch(statements.map((s) => db.prepare(s)))
+    await db.batch(Array.from({ length: 12 }, (_, i) => db.prepare('INSERT INTO schema_migrations VALUES (?1, 1)').bind(i + 1)))
+    await db.prepare("INSERT INTO users (id, username, password_hash, login, created_at, last_seen_at) VALUES ('legacy', 'legacy', 'preserved-hash', 'legacy', 1, 1)").run()
+    await db.prepare("INSERT INTO notes (id, user_id, content, created_at, updated_at) VALUES ('legacy-note', 'legacy', 'Preserved content', 1, 1)").run()
+    await db.prepare('CREATE VIRTUAL TABLE notes_fts USING fts5(note_id UNINDEXED, user_id UNINDEXED, title, body)').run()
+    await db.prepare("INSERT INTO notes_fts(rowid, note_id, user_id, title, body) VALUES (42, 'legacy-note', 'legacy', 'Legacy', 'Preserved content')").run()
+    if (lineage === 'fork') {
+      await db.prepare("INSERT INTO passkey_credentials (id, user_id, public_key, counter, transports, device_type, backed_up, name, created_at) VALUES ('credential', 'legacy', 'preserved-key', 7, '[]', 'singleDevice', 0, 'Existing key', 1)").run()
+    }
+    const before = lineage === 'fork' ? (await db.prepare('SELECT * FROM passkey_credentials').all()).results : []
+    const who = client(mf)
+    await expected(who, 'GET', '/api/auth/session')
+    assert.ok(await db.prepare('SELECT 1 FROM schema_migrations WHERE version = 13').first())
+    assert.equal((await db.prepare("SELECT content FROM notes WHERE id = 'legacy-note'").first()).content, 'Preserved content')
+    assert.equal((await db.prepare("SELECT password_hash FROM users WHERE id = 'legacy'").first()).password_hash, 'preserved-hash')
+    assert.deepEqual((await db.prepare('SELECT * FROM passkey_credentials').all()).results, before)
+    for (const name of ['idx_versions_note', 'idx_runs_user']) {
+      assert.match((await db.prepare('SELECT sql FROM sqlite_master WHERE name = ?1').bind(name).first()).sql, /id DESC/)
+    }
+    for (const name of ['idx_notes_user_id', 'idx_tags_name_nocase', 'idx_versions_user']) {
+      assert.ok(await db.prepare('SELECT 1 FROM sqlite_master WHERE name = ?1').bind(name).first())
+    }
+    assert.deepEqual((await db.prepare("SELECT rowid, body FROM notes_fts WHERE notes_fts MATCH 'note_id : \"legacy-note\"'").all()).results, [{ rowid: 42, body: 'Preserved content' }])
+    await expected(who, 'GET', '/api/auth/session')
+    assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM schema_migrations WHERE version = 13').first()).n, 1)
+  })
+}
+
 for (const storage of ['r2', 'kv']) {
   test(`Passkeys in workerd with real D1 (${storage})`, async (t) => {
     const mf = await createRuntime(storage)

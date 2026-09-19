@@ -60,17 +60,21 @@ settingsRoutes.put('/', async (c) => {
 settingsRoutes.get('/stats', async (c) => {
   const userId = c.get('userId')
   const row = await c.env.DB.prepare(
-    `SELECT
-       (SELECT COUNT(*) FROM notes WHERE user_id = ?1 AND deleted_at IS NULL) AS notes,
-       (SELECT COUNT(*) FROM notes WHERE user_id = ?1 AND deleted_at IS NOT NULL) AS trashed,
+    `SELECT note_stats.*, attachment_stats.*,
        (SELECT COUNT(*) FROM folders WHERE user_id = ?1 AND deleted_at IS NULL) AS folders,
        (SELECT COUNT(*) FROM tags WHERE user_id = ?1) AS tags,
-       (SELECT COUNT(*) FROM attachments WHERE user_id = ?1) AS attachments,
-       (SELECT COALESCE(SUM(size), 0) FROM attachments WHERE user_id = ?1) AS attachmentBytes,
-       (SELECT COALESCE(SUM(char_count), 0) FROM notes WHERE user_id = ?1 AND deleted_at IS NULL) AS chars,
-       (SELECT COALESCE(SUM(word_count), 0) FROM notes WHERE user_id = ?1 AND deleted_at IS NULL) AS words,
        (SELECT COUNT(*) FROM note_versions WHERE user_id = ?1) AS versions,
-       (SELECT COUNT(*) FROM links WHERE user_id = ?1) AS links`,
+       (SELECT COUNT(*) FROM links WHERE user_id = ?1) AS links
+     FROM (
+       SELECT COUNT(CASE WHEN deleted_at IS NULL THEN 1 END) AS notes,
+              COUNT(deleted_at) AS trashed,
+              COALESCE(SUM(CASE WHEN deleted_at IS NULL THEN char_count ELSE 0 END), 0) AS chars,
+              COALESCE(SUM(CASE WHEN deleted_at IS NULL THEN word_count ELSE 0 END), 0) AS words
+         FROM notes WHERE user_id = ?1
+     ) note_stats CROSS JOIN (
+       SELECT COUNT(*) AS attachments, COALESCE(SUM(size), 0) AS attachmentBytes
+         FROM attachments WHERE user_id = ?1
+     ) attachment_stats`,
   )
     .bind(userId)
     .first<Record<string, number>>()
