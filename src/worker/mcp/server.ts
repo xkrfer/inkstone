@@ -194,7 +194,7 @@ export function createInkstoneMcpServer(options: InkstoneMcpServerOptions): McpS
         note_id: noteId,
         section: z.string().trim().min(1).max(300).optional(),
         cursor: z.string().max(32).optional(),
-        max_chars: z.number().int().min(1_000).max(40_000).default(12_000),
+        max_chars: z.number().int().min(1).max(40_000).default(12_000),
         start_line: z.number().int().positive().optional(),
         end_line: z.number().int().positive().optional(),
       }),

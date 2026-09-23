@@ -243,7 +243,7 @@ export async function readMcpNote(
     end = lines[endLine] ?? note.content.length
   }
 
-  const maxChars = clampInteger(input.maxChars ?? READ_DEFAULT_CHARS, 1_000, READ_MAX_CHARS)
+  const maxChars = clampInteger(input.maxChars ?? READ_DEFAULT_CHARS, 1, READ_MAX_CHARS)
   const pageEnd = Math.min(end, start + maxChars)
   return {
     note_id: note.id,
