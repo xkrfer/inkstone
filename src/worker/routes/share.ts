@@ -1,7 +1,7 @@
 import { Hono, type Context } from 'hono'
 import { setCookie } from 'hono/cookie'
 import { LIMITS } from '@shared/constants'
-import type { PublicNote, ShareInfo } from '@shared/types'
+import type { PublicNote, ShareInfo, ShareListItem } from '@shared/types'
 import type { AppBindings } from '../env'
 import { ApiError } from '../lib/errors'
 import { isValidSlug, newSlug } from '../lib/id'
@@ -51,6 +51,23 @@ function toShareInfo(row: ShareRow, origin: string): ShareInfo {
 
 
 shareManageRoutes.use('*', requireAuth)
+
+shareManageRoutes.get('/', async (c) => {
+  const rows = await c.env.DB.prepare(
+    `SELECT s.slug, s.note_id, s.user_id, s.password_hash, s.expires_at, s.views, s.created_at,
+            n.title AS note_title, n.deleted_at
+       FROM shares s JOIN notes n ON n.id = s.note_id AND n.user_id = s.user_id
+      WHERE s.user_id = ?1
+      ORDER BY s.created_at DESC, s.slug DESC`,
+  ).bind(c.get('userId')).all<ShareRow & { note_title: string; deleted_at: number | null }>()
+  const origin = new URL(c.req.url).origin
+  const shares: ShareListItem[] = rows.results.map((row) => ({
+    ...toShareInfo(row, origin),
+    noteTitle: row.note_title,
+    deletedAt: row.deleted_at,
+  }))
+  return c.json({ shares })
+})
 
 shareManageRoutes.get('/:noteId', async (c) => {
   const row = await c.env.DB.prepare(

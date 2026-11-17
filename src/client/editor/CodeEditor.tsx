@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Annotation, Compartment, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, drawSelection, dropCursor, keymap, lineNumbers, placeholder as placeholderExt, rectangularSelection, } from '@codemirror/view';
 import { foldGutter, indentOnInput, indentUnit, } from '@codemirror/language';
-import { defaultKeymap, history, historyKeymap, indentWithTab, standardKeymap, } from '@codemirror/commands';
-import { search, searchKeymap } from '@codemirror/search';
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { searchKeymap } from '@codemirror/search';
 import { acceptCompletion, autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, } from '@codemirror/autocomplete';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import type { EditorSettings } from '@shared/types';
@@ -12,8 +12,10 @@ import { editorTheme } from './theme';
 import { focusModePlugin, markdownDecorations, setFocusMode, typewriterPlugin } from './decorations';
 import { codeFenceSource, tagSource, wikiLinkSource, type CompletionSources } from './completion';
 import { pasteExtension, type PasteHandlers } from './paste';
-import { completeCodeFenceOnEnter, setHeading, smartEnter, tableTab, toggleBold, toggleBulletList, toggleHighlight, toggleInlineCode, toggleItalic, toggleOrderedList, toggleQuote, toggleStrikethrough, toggleTaskDone, toggleTaskList, } from './commands';
+import { completeCodeFenceOnEnter, smartEnter, tableTab } from './commands';
+import { editorKeymap } from './shortcuts';
 import { livePreview } from './live-preview';
+import { noteSearch } from './search';
 import type { Heading } from '../lib/markdown/renderer';
 import { t } from "../lib/i18n";
 
@@ -72,7 +74,7 @@ export function CodeEditor({ value, live = false, noteTitle = '', onHeadings, on
                 placeholderExt(placeholder),
                 EditorView.contentAttributes.of({ 'aria-label': placeholder }),
             ]),
-            search({ top: true }),
+            noteSearch(),
             autocompletion({
                 override: [
 
@@ -98,25 +100,9 @@ export function CodeEditor({ value, live = false, noteTitle = '', onHeadings, on
             keymap.of([
                 { key: 'Enter', run: (view) => completeCodeFenceOnEnter(view) || smartEnter(view) },
                 { key: 'Tab', run: (view) => acceptCompletion(view) || tableTab(view) },
-                { key: 'Mod-b', run: toggleBold, preventDefault: true },
-                { key: 'Mod-i', run: toggleItalic, preventDefault: true },
-                { key: 'Mod-e', run: toggleInlineCode, preventDefault: true },
-                { key: 'Mod-Shift-x', run: toggleStrikethrough },
-                { key: 'Mod-Shift-h', run: toggleHighlight },
-                { key: 'Mod-Shift-.', run: toggleQuote },
-                { key: 'Mod-Shift-8', run: toggleBulletList },
-                { key: 'Mod-Shift-7', run: toggleOrderedList },
-                { key: 'Mod-Shift-9', run: toggleTaskList },
-                { key: 'Mod-Shift-Enter', run: toggleTaskDone },
-                { key: 'Mod-1', run: setHeading(1) },
-                { key: 'Mod-2', run: setHeading(2) },
-                { key: 'Mod-3', run: setHeading(3) },
-                { key: 'Mod-4', run: setHeading(4) },
-                { key: 'Mod-5', run: setHeading(5) },
-                { key: 'Mod-6', run: setHeading(6) },
+                ...editorKeymap,
             ]),
             keymap.of([...closeBracketsKeymap, ...completionKeymap, ...searchKeymap, ...historyKeymap]),
-            keymap.of(standardKeymap),
             keymap.of(defaultKeymap),
             keymap.of([indentWithTab]),
             lineNumbersCompartment.current.of(

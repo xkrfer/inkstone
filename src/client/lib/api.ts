@@ -28,6 +28,7 @@ import type {
   SearchResponse,
   SessionInfo,
   ShareInfo,
+  ShareListItem,
   SyncResponse,
   Tag,
   TestConnectionResult,
@@ -487,6 +488,8 @@ export const api = {
   },
 
   share: {
+    list: (signal?: AbortSignal) =>
+      request<{ shares: ShareListItem[] }>('/api/share', { signal }),
     get: (noteId: string, signal?: AbortSignal) =>
       request<{ share: ShareInfo | null }>(`/api/share/${noteId}`, { signal }),
     create: (noteId: string, body: { password?: string | null; expiresIn?: number | null }) =>

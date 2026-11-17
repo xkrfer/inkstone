@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, ExternalLink, Eye, Globe, Link2, Lock, Trash2 } from 'lucide-react';
 import { LIMITS } from '@shared/constants';
-import type { ShareInfo } from '@shared/types';
+import type { NoteSummary, ShareInfo } from '@shared/types';
 import { api, ApiError } from '../../lib/api';
 import { cn } from '../../lib/cn';
 import { fullTime } from '../../lib/time';
@@ -24,10 +24,13 @@ const EXPIRY_OPTIONS = [
     { value: String(7 * 24 * 3600000), label: () => t("share.7_days") },
     { value: String(30 * 24 * 3600000), label: () => t("share.30_days") },
 ];
-export function SharePanel({ onClose }: {
+export function SharePanel({ onClose, targetNote, onChanged }: {
     onClose: () => void;
+    targetNote?: Pick<NoteSummary, 'id' | 'title'>;
+    onChanged?: () => void;
 }) {
-    const { note } = useActiveNote();
+    const { note: activeNote } = useActiveNote();
+    const note = targetNote ?? activeNote;
     const toast = useUi((s) => s.toast);
     const [share, setShare] = useState<ShareInfo | null | undefined>(undefined);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -117,6 +120,7 @@ export function SharePanel({ onClose }: {
             setShare(res.share);
             setPassword('');
             setExpiry(res.share.expiresAt ? KEEP_CURRENT_EXPIRY : '0');
+            onChanged?.();
             toast({ title: wasShared ? t("share.sharing_settings_updated") : t("share.public_link_created"), tone: 'success' });
         }
         catch (err) {
@@ -161,6 +165,7 @@ export function SharePanel({ onClose }: {
             await api.share.remove(noteId);
             if (mutationEpoch.current !== epoch || noteIdRef.current !== noteId)
                 return;
+            onChanged?.();
             toast({ title: t("share.link_revoked") });
         }
         catch (err) {

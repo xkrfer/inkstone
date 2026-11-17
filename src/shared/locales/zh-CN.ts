@@ -33,6 +33,44 @@ export const ZH_CN_MESSAGES = {
     "passkey.limit": "最多可添加 10 个通行密钥，请先删除一个。",
     "passkey.unavailable": "此实例尚未启用通行密钥，请使用密码登录。",
 
+    "editor.search.find": "查找",
+    "editor.search.replace": "替换",
+    "editor.search.find_in_note": "在当前笔记中查找",
+    "editor.search.replace_in_note": "在当前笔记中替换",
+    "editor.search.find_placeholder": "查找笔记中的内容…",
+    "editor.search.replace_placeholder": "替换为…（留空则删除）",
+    "editor.search.previous": "上一个匹配（Shift+Enter）",
+    "editor.search.next": "下一个匹配（Enter）",
+    "editor.search.close": "关闭查找（Esc）",
+    "editor.search.resize": "调整查找窗口大小：向左、向下拖动放大，也可使用方向键",
+    "editor.search.replace_all": "全部替换",
+    "editor.search.undo": "撤销替换",
+    "editor.search.undone": "已撤销替换。",
+    "editor.search.match_case": "区分大小写",
+    "editor.search.whole_word": "全字匹配",
+    "editor.search.regexp": "正则表达式",
+    "editor.search.escapes": "识别 \\n、\\t 转义",
+    "editor.search.in_selection": "仅在选区内",
+    "editor.search.selection_hint": "打开查找前先选中文字，即可限定查找和替换范围。",
+    "editor.search.selection_scope": "所选文字",
+    "editor.search.note_scope": "当前笔记",
+    "editor.search.count": "{current} / {total}",
+    "editor.search.match_count": "{count} 个匹配",
+    "editor.search.start_hint": "输入要查找的内容。Enter：下一项 · Shift+Enter：上一项",
+    "editor.search.no_matches": "没有找到匹配内容，请调整关键词或查找选项。",
+    "editor.search.invalid_regexp": "正则表达式有误，请检查后重试。",
+    "editor.search.imprecise": "此匹配仅覆盖规范化字符的一部分，无法安全替换。",
+    "editor.search.replaced": "已替换 {count} 处。",
+    "editor.search.wrapped_start": "已到达末尾，从开头继续查找。",
+    "editor.search.wrapped_end": "已到达开头，从末尾继续查找。",
+    "editor.search.results": "匹配结果",
+    "editor.search.result_line": "第 {line} 行",
+    "editor.search.empty_match": "空匹配",
+    "editor.search.results_limit": "仅展示前 {count} 项，可用上 / 下一个按钮遍历全部匹配。",
+    "navigation.note_views": "笔记视图",
+    "navigation.close_list": "收起笔记列表",
+    "navigation.searching": "正在搜索…",
+    "navigation.local_search_only": "搜索暂不可用，当前显示本地匹配结果。",
     "mobile.account": "我的",
     "mobile.view": "查看",
     "mobile.menu": "菜单",
@@ -152,6 +190,16 @@ export const ZH_CN_MESSAGES = {
     "command.insert_tag_autocomplete": "插入标签（自动补全）",
     "command.jump_to_the_next_cell_in_the_table": "在表格中跳到下一格",
     "command.keyboard_shortcuts": "快捷键一览",
+    "command.indent": "增加缩进",
+    "command.outdent": "减少缩进",
+    "command.select_next_occurrence": "选中下一处相同文本",
+    "command.shortcut_scope_hint": "格式和文本编辑快捷键在笔记编辑器内生效。{shortcut} 仅在笔记列表获得焦点时将笔记移入回收站。",
+    "command.note_list": "笔记列表",
+    "command.navigate_notes": "上下选择笔记",
+    "command.navigate_menu": "切换菜单或搜索结果",
+    "command.confirm_choice": "确认选择",
+    "command.close_overlay": "关闭菜单或弹窗",
+    "command.menu_navigation": "菜单与弹窗",
     "command.keyboard_shortcuts_021cf9": "键盘快捷键",
     "command.layout_editor_only": "布局：仅编辑",
     "command.layout_preview_only": "布局：仅预览",
@@ -385,6 +433,9 @@ export const ZH_CN_MESSAGES = {
     "notes.comfortable_list": "舒适列表",
     "notes.compact_list": "紧凑列表",
     "notes.content_conflict": "内容有冲突",
+    "notes.copy_id": "复制 ID",
+    "notes.copy_direct_link": "复制直链",
+    "notes.copy_title": "复制标题",
     "notes.could_not_create_note": "新建笔记失败",
     "notes.could_not_update_the_offline_queue_state": "离线队列状态保存失败",
     "notes.create_a_copy": "创建副本",
@@ -393,6 +444,7 @@ export const ZH_CN_MESSAGES = {
     "notes.delete_permanently": "彻底删除",
     "notes.deleted": "已删除",
     "notes.deleted_notes_remain_until_you_restore_or_clear_them": "删除的笔记会保留到你恢复或清空它们",
+    "notes.direct_link_copied": "已复制直链",
     "notes.deletion_was_canceled_because_the_note_body_is_not_safely_synced": "正文尚未安全同步，已取消删除",
     "notes.deselect": "取消选择",
     "notes.drag_notes_in_or_create_new_ones_here": "把笔记拖进来，或在这里新建",
@@ -404,6 +456,7 @@ export const ZH_CN_MESSAGES = {
     "notes.failed_to_open_note": "打开笔记失败",
     "notes.filter_in_this_view": "在此视图中筛选…",
     "notes.full_sync_pagination_data_is_incomplete": "全量同步分页信息不完整",
+    "notes.id_copied": "已复制 ID",
     "notes.sync_pagination_data_is_incomplete": "同步分页信息不完整",
     "notes.keep_notes_here_when_you_want_them_out_of_the_way_but_not_deleted": "暂时不看但又不想删的笔记可以放这里",
     "notes.keep_this_page_open_and_reconnect_as_soon_as_possible_closing_it_may_mak": "请保持页面打开并尽快恢复网络，否则关闭页面后内容可能无法恢复。",
@@ -455,6 +508,7 @@ export const ZH_CN_MESSAGES = {
     "notes.this_note_no_longer_exists": "这篇笔记已不存在",
     "notes.this_operation_cannot_be_undone": "这个操作无法撤销。",
     "notes.title": "按标题",
+    "notes.title_copied": "已复制标题",
     "notes.trash_is_empty": "回收站是空的",
     "notes.try_another_search_or_press_shortcut_to_search_everywhere": "换个词试试，或者用 {shortcut} 全局搜索",
     "notes.unpin": "取消置顶",
@@ -601,6 +655,15 @@ export const ZH_CN_MESSAGES = {
     "settings.created_value0_updated_value1_skipped_value2_restored_value3_attachments": "新建 {value0} 篇，更新 {value1} 篇，跳过 {value2} 篇，恢复 {value3} 个附件，跳过 {value4} 个附件",
     "settings.current_password": "当前密码",
     "settings.daily": "每天",
+    "settings.weekly": "每周",
+    "settings.monthly": "每月",
+    "settings.yearly": "每年",
+    "settings.backup_retention": "保留份数",
+    "settings.backup_retention_description": "每个目标单独保留。新备份成功后才清理超出的旧备份；仅清理启用本功能后由本应用记录的备份，手动备份也计入。",
+    "settings.keep_all_backups": "保留全部",
+    "settings.keep_latest_backups": "保留最近 {count} 份",
+    "settings.backup_cleanup_warning": "备份已成功，旧备份清理未完成：",
+    "backup.service.cleanup_pending": "旧备份较多，将在下次成功备份后继续清理。",
     "settings.dark": "深色",
     "settings.data": "数据",
     "settings.delay_before_uploading_after_you_stop_typing_shorter_makes_more_requests": "停止输入后等待多久自动保存",
@@ -923,9 +986,11 @@ export const ZH_CN_MESSAGES = {
     "share.1_day": "1 天",
     "share.30_days": "30 天",
     "share.7_days": "7 天",
+    "share.active": "生效中",
     "share.anyone_who_gets_the_link_will_immediately_lose_access": "任何拿到链接的人都会立刻无法访问。",
     "share.ask_the_person_who_shared_this_note_for_its_passcode": "请向分享者索取访问口令",
     "share.content_unavailable": "内容不可用",
+    "share.could_not_load_list": "无法读取分享列表",
     "share.done": "完成",
     "share.embedded_private_notes_are_not_included_in_public_shares": "嵌入内容不会显示在公开分享中",
     "share.expiration": "有效期",
@@ -933,15 +998,19 @@ export const ZH_CN_MESSAGES = {
     "share.expires_value0": "{value0} 过期",
     "share.generate_public_link": "生成公开链接",
     "share.incorrect_passcode": "口令不正确",
+    "share.in_trash": "在回收站",
     "share.enter_a_passcode": "请先输入访问口令",
     "share.passcode_too_short": "访问口令至少需要 4 个字符",
     "share.keep_current_expiration": "保持当前",
     "share.leave_blank_to_keep_the_current_passcode": "留空表示保持原来的口令不变",
     "share.link_revoked": "链接已撤销",
     "share.loading_share_status": "读取分享状态…",
+    "share.manage": "管理",
     "share.could_not_load_sharing_status": "无法读取分享状态",
     "share.never_expires": "永久",
     "share.never_expires_71ab34": "永久有效",
+    "share.no_matching_shares": "没有匹配的分享",
+    "share.no_shared_notes": "还没有分享过笔记",
     "share.open_link": "打开链接",
     "share.opening": "正在打开…",
     "share.passcode": "口令",
@@ -949,14 +1018,19 @@ export const ZH_CN_MESSAGES = {
     "share.public_link": "公开链接",
     "share.public_link_created": "公开链接已生成",
     "share.public_links_are_read_only_visitors_can_see_only_the_latest_version_of_t": "公开链接为只读。访问者只能查看这篇笔记的最新内容，无法访问其他笔记。",
+    "share.refresh_list": "刷新分享列表",
     "share.require_a_passcode_to_view_this_note": "开启后需要输入口令才能查看",
     "share.revoke_link": "撤销链接",
     "share.revoke_this_public_link": "撤销这个公开链接？",
     "share.set_a_passcode": "设置一个口令",
+    "share.search_shared_notes": "搜索已分享的笔记或链接",
     "share.share_note": "分享笔记",
+    "share.shared_notes": "分享列表",
+    "share.shared_notes_description": "查看和管理已创建的公开链接。",
     "share.shared_via_site": "由 {site} 分享",
     "share.sharing_settings_updated": "已更新分享设置",
     "share.switch_theme": "切换主题",
+    "share.source_note_unavailable": "原笔记暂时无法打开",
     "share.tasks_in_public_shares_are_read_only": "公开分享中的任务为只读",
     "share.this_note_requires_a_password": "这篇笔记需要口令",
     "share.unchanged": "••••••（不变）",
@@ -1048,11 +1122,22 @@ export const ZH_CN_MESSAGES = {
     "time.yesterday": "昨天",
       "workspace.reading_mode": "阅读模式",
   "workspace.live_preview": "即时渲染",
+  "workspace.editing_mode": "编辑模式",
   "workspace.live_preview_hint": "点击内容编辑，移开光标查看排版；Ctrl / ⌘ + 点击打开链接",
   "workspace.a_snapshot_is_saved_every_few_minutes_or_after_larger_edits": "每隔几分钟或改动较大时，会自动留一份存档",
     "workspace.autosave_for_value0": "「{value0}」的自动存档",
     "workspace.back_to_notes": "返回笔记列表",
     "workspace.block_id": "块 ID",
+    "workspace.paragraph": "正文",
+    "workspace.upload_image": "上传图片",
+    "workspace.block_math": "块级公式",
+    "workspace.front_matter": "笔记属性（YAML）",
+    "workspace.hidden_comment": "隐藏注释",
+    "workspace.links_and_references": "链接与引用",
+    "workspace.note_tools": "笔记工具",
+    "workspace.code_and_diagrams": "代码与图表",
+    "workspace.content_blocks": "内容块",
+    "workspace.formatting_tools": "排版工具栏",
     "workspace.block_reference": "块引用",
     "workspace.callout": "提示块",
     "workspace.characters": "字符",
@@ -1133,7 +1218,7 @@ aliases:
 - [ ] 点击这个复选框，确认勾选状态会保存
   - [ ] 子任务也能精确勾选，不会改错上一行
 - [ ] 选中文字，按 \`Ctrl + B\` 加粗
-- [ ] 按 \`Ctrl + K\` 打开命令面板
+- [ ] 按 \`Ctrl + Shift + P\` 打开命令面板
 - [ ] 写一个 \`#标签\`，或点击 [[我的第一篇笔记]] 创建双链笔记
 - [ ] 点击笔记顶部标题，把它改成与正文不同的名称
 - [ ] 新建一个子文件夹，再把它拖到其他文件夹或同级位置
@@ -1153,16 +1238,17 @@ aliases:
 
 | 快捷键 | 作用 |
 | --- | --- |
-| \`Ctrl + K\` | 打开命令面板 |
-| \`Ctrl + P\` | 快速打开笔记 |
-| \`Ctrl + N\` | 新建笔记 |
+| \`Ctrl + Shift + P\` | 打开命令面板 |
+| \`Ctrl + Alt + N\` | 新建笔记 |
 | \`Ctrl + Shift + F\` | 全文搜索 |
 | \`Ctrl + ,\` | 打开设置 |
 | \`Ctrl + \\\` | 切换编辑、分栏和预览 |
 | \`Ctrl + S\` | 立即保存；平时会自动保存 |
 | \`Ctrl + B / I / E\` | 粗体、斜体、行内代码 |
-| \`Ctrl + 1…6\` | 设置一至六级标题 |
-| \`Shift + ?\` | 查看完整快捷键 |
+| \`Ctrl + Alt + 1…6\` | 设置一至六级标题 |
+| \`Ctrl + Alt + 0\` | 恢复正文 |
+| \`Ctrl + K\` | 在编辑器内插入链接 |
+| \`Ctrl + Shift + /\` | 查看完整快捷键 |
 
 ## 为什么适合长期使用
 

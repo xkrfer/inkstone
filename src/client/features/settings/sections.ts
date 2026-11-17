@@ -1,7 +1,7 @@
 import { backupRunsResource, backupTargetsResource, mcpResource, statsResource, totpResource } from './resources'
 import { useSession } from '../../store/session'
 
-export type SettingsSection = 'appearance' | 'editor' | 'backup' | 'sync' | 'mcp' | 'account' | 'data' | 'about'
+export type SettingsSection = 'appearance' | 'editor' | 'backup' | 'sync' | 'mcp' | 'account' | 'data' | 'shares' | 'about'
 
 export const settingsLoaders = {
   editor: () => import('./EditorSettings').then((m) => ({ default: m.EditorSettings })),
@@ -10,6 +10,7 @@ export const settingsLoaders = {
   mcp: () => import('./McpSettings').then((m) => ({ default: m.McpSettings })),
   account: () => import('./AccountSettings').then((m) => ({ default: m.AccountSettings })),
   data: () => import('./DataSettings').then((m) => ({ default: m.DataSettings })),
+  shares: () => import('./SharedNotes').then((m) => ({ default: m.SharedNotes })),
   about: () => import('./AboutSettings').then((m) => ({ default: m.AboutSettings })),
 }
 

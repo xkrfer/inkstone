@@ -177,7 +177,7 @@ export function createDemoBackend(): DemoBackend {
     if (existing) return c.json(existing)
     const content = typeof body.content === 'string' ? body.content : ''
     if (utf8ByteLength(content) > LIMITS.contentMaxBytes) {
-      return apiError(413, 'payload_too_large', 'Note content exceeds the 2 MB limit')
+      return apiError(413, 'payload_too_large', `Note content exceeds the ${LIMITS.contentMaxBytes / 1_000_000} MB limit`)
     }
     const now = Date.now()
     const base: Note = {
@@ -296,7 +296,7 @@ export function createDemoBackend(): DemoBackend {
     }
     const nextContent = typeof body.content === 'string' ? body.content : note.content
     if (utf8ByteLength(nextContent) > LIMITS.contentMaxBytes) {
-      return apiError(413, 'payload_too_large', 'Note content exceeds the 2 MB limit')
+      return apiError(413, 'payload_too_large', `Note content exceeds the ${LIMITS.contentMaxBytes / 1_000_000} MB limit`)
     }
     if (typeof body.content === 'string' || typeof body.title === 'string') saveVersion(state, note)
     let updated = refreshNote(
@@ -774,6 +774,18 @@ export function createDemoBackend(): DemoBackend {
     status: 'unavailable' as const,
   }))
 
+  app.get('/api/share', (c) => c.json({
+    shares: [...state.shares.values()]
+      .flatMap((share) => {
+        const note = state.notes.get(share.info.noteId)
+        return note ? [{
+          ...absoluteShare(share.info, c.req.url),
+          noteTitle: note.title,
+          deletedAt: note.deletedAt,
+        }] : []
+      })
+      .sort((a, b) => b.createdAt - a.createdAt || b.slug.localeCompare(a.slug)),
+  }))
   app.get('/api/share/:noteId', (c) => {
     const share = state.shares.get(c.req.param('noteId'))
     return c.json({ share: share ? absoluteShare(share.info, c.req.url) : null })
@@ -1015,7 +1027,7 @@ export function createDemoBackend(): DemoBackend {
           await importBundle(state, JSON.parse(await value.text()), result)
         } else {
           if (value.size > LIMITS.contentMaxBytes) {
-            throw new Error('A note file cannot exceed 2 MB')
+            throw new Error(`A note file cannot exceed ${LIMITS.contentMaxBytes / 1_000_000} MB`)
           }
           const content = await value.text()
           createImportedNote(state, content, deriveTitle(content), null)

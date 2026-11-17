@@ -91,7 +91,7 @@ export type UiDensity = 'comfortable' | 'compact'
 export type ProseFont = 'sans' | 'serif'
 export type ProseWidth = 'narrow' | 'normal' | 'wide' | 'full'
 export type EditorLayout = 'live' | 'split' | 'preview'
-export type BackupSchedule = 'off' | 'hourly' | 'sixHourly' | 'daily'
+export type BackupSchedule = 'off' | 'hourly' | 'sixHourly' | 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 export interface AppearanceSettings {
   language: AppLocale
@@ -113,6 +113,7 @@ export interface EditorSettings {
   focusMode: boolean
   spellcheck: boolean
   showToolbar: boolean
+  livePreview: boolean
   tabSize: number
   autoSaveDelay: number
 }
@@ -129,6 +130,7 @@ export interface PreviewSettings {
 
 export interface BackupSettings {
   schedule: BackupSchedule
+  retentionCount: number
 }
 
 export interface SyncSettings {
@@ -434,6 +436,7 @@ export interface BackupTargetResult {
   targetName: string
   targetType: BackupTargetType
   ok: boolean
+  warning?: string
   files: number
   bytes: number
   ms: number
@@ -468,6 +471,11 @@ export interface ShareInfo {
   expiresAt: number | null
   views: number
   createdAt: number
+}
+
+export interface ShareListItem extends ShareInfo {
+  noteTitle: string
+  deletedAt: number | null
 }
 
 export interface PublicNote {
