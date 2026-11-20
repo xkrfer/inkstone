@@ -60,4 +60,4 @@ crons = ["0 * * * *", "15,45 * * * *"]
 APP_NAME = "Inkstone"
 
 [observability]
-enabled = true
+enabled = false
